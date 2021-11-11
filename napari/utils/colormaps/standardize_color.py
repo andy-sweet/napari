@@ -18,14 +18,13 @@ white color array, since it seems unreasonable to crash the entire napari
 session due to mis-represented colors.
 """
 
-import functools
 import types
 import warnings
-from typing import Any, Callable, Dict, Sequence
+from typing import Any, Sequence
 
 import numpy as np
-from vispy.color import ColorArray, get_color_dict, get_color_names
-from vispy.color.color_array import _string_to_rgb
+import pydantic.color
+from vispy.color import _color_dict, get_color_dict, get_color_names
 
 from ..translations import trans
 
@@ -61,130 +60,22 @@ def transform_color(colors: Any) -> np.ndarray:
     ValueError, AttributeError, KeyError
         invalid inputs
     """
-    colortype = type(colors)
-    return _color_switch[colortype](colors)
-
-
-@functools.lru_cache(maxsize=1024)
-def _handle_str(color: str) -> np.ndarray:
-    """Creates an array from a color of type string.
-
-    The function uses an LRU cache to enhance performance.
-
-    Parameters
-    ----------
-    color : str
-        A single string as an input color. Can be a color name or a
-        hex representation of a color, with either 6 or 8 hex digits.
-
-    Returns
-    -------
-    colorarray : np.ndarray
-        1x4 array
-
-    """
-    if len(color) == 0:
-        warnings.warn(
-            trans._(
-                "Empty string detected. Returning black instead.",
-                deferred=True,
-            )
-        )
+    if colors is None:
         return np.zeros((1, 4), dtype=np.float32)
 
-    # This line will stay here until vispy adds a "transparent" key
-    # to their color dictionary. A PR was sent and approved, currently
-    # waiting to be merged.
-    color = color.replace("transparent", "#00000000")
-    colorarray = np.atleast_2d(_string_to_rgb(color)).astype(np.float32)
-    if colorarray.shape[1] == 3:
-        colorarray = np.column_stack([colorarray, np.float32(1.0)])
-    return colorarray
+    # Always make this into a numpy array, so we can reason about
+    # dtype and shape easily.
+    if isinstance(colors, types.GeneratorType):
+        colors = list(colors)
+    colors = np.asarray(colors)
 
-
-def _handle_list_like(colors: Sequence) -> np.ndarray:
-    """Parse a list-like container of colors into a numpy Nx4 array.
-
-    Handles all list-like containers of colors using recursion (if necessary).
-    The colors inside the container should all be represented in the same
-    manner. This means that a list containing ['r', (1., 1., 1.)] will raise
-    an error. Note that numpy arrays are handled in _handle_array. Lists which
-    are known to contain strings will be parsed with _handle_str_list_like.
-    Generators should first visit _handle_generator before arriving as input.
-
-    Parameters
-    ----------
-    colors : Sequence
-        A list-like container of colors. The colors inside should be homogeneous
-        in their representation.
-
-    Returns
-    -------
-    color_array : np.ndarray
-        Nx4 numpy array, with N being the length of ``colors``.
-    """
-
-    try:
-        # The following conversion works for most cases, and so it's expected
-        # that most valid inputs will pass this .asarray() call
-        # with ease. Those who don't are usually too cryptic to decipher.
-        # If only some of the colors are strings, explicitly provide an object
-        # dtype to avoid the deprecated behavior described in:
-        # https://github.com/napari/napari/issues/2791
-        num_str = len([c for c in colors if isinstance(c, str)])
-        dtype = 'O' if 0 < num_str < len(colors) else None
-        color_array = np.atleast_2d(np.asarray(colors, dtype=dtype))
-    except ValueError:
-        warnings.warn(
-            trans._(
-                "Couldn't convert input color array to a proper numpy array. Please make sure that your input data is in a parsable format. Converting input to a white color array.",
-                deferred=True,
-            )
-        )
-        return np.ones((max(len(colors), 1), 4), dtype=np.float32)
-
-    # Happy path - converted to a float\integer array
-    if color_array.dtype.kind in ['f', 'i']:
-        return _handle_array(color_array)
-
-    # User input was an iterable with strings
-    if color_array.dtype.kind in ['U', 'O']:
-        return _handle_str_list_like(color_array.ravel())
-
-
-def _handle_generator(colors) -> np.ndarray:
-    """Generators are converted to lists since we need to know their
-    length to instantiate a proper array.
-    """
-    return _handle_list_like(list(colors))
-
-
-def handle_nested_colors(colors) -> ColorArray:
-    """In case of an array-like container holding colors, unpack it."""
-    colors_as_rbga = np.ones((len(colors), 4), dtype=np.float32)
-    for idx, color in enumerate(colors):
-        colors_as_rbga[idx] = _color_switch[type(color)](color)
-    return ColorArray(colors_as_rbga)
-
-
-def _handle_array(colors: np.ndarray) -> np.ndarray:
-    """Converts the given array into an array in the right format."""
-    kind = colors.dtype.kind
-
-    # Object arrays aren't handled by napari
-    if kind == 'O':
-        warnings.warn(
-            trans._(
-                "An object array was passed as the color input. Please convert its datatype before sending it to napari. Converting input to a white color array.",
-                deferred=True,
-            )
-        )
-        return np.ones((max(len(colors), 1), 4), dtype=np.float32)
-
-    # An array of strings will be treated as a list if compatible
-    elif kind == 'U':
-        if colors.ndim == 1:
-            return _handle_str_list_like(colors)
+    # If the array contains numpy strings, then we will stupidly
+    # convert back to regular strings, which is not ideal.
+    if np.issubdtype(colors.dtype, str):
+        if colors.ndim == 0:
+            return _multi_rgba_from_pydantic_colors([str(colors)])
+        elif colors.ndim == 1:
+            return _multi_rgba_from_pydantic_colors([str(c) for c in colors])
         else:
             warnings.warn(
                 trans._(
@@ -192,76 +83,36 @@ def _handle_array(colors: np.ndarray) -> np.ndarray:
                     deferred=True,
                 )
             )
-            return np.ones((len(colors), 4), dtype=np.float32)
+            return np.ones((max(1, len(colors)), 4), dtype=np.float32)
 
-    # Test the dimensionality of the input array
+    # We only support strings and numbers.
+    if not np.issubdtype(colors.dtype, np.number):
+        raise TypeError('Bad dtype')
 
-    # Empty color array can be a way for the user to signal
-    # that it wants the "default" colors of napari. We return
-    # a single white color.
-    if colors.shape[-1] == 0:
-        warnings.warn(
-            trans._(
-                "Given color input is empty. Converting input to a white color array.",
-                deferred=True,
-            )
-        )
-        return np.ones((1, 4), dtype=np.float32)
-
+    # Check the shape, then convert and normalize.
     colors = np.atleast_2d(colors)
-
-    # Arrays with more than two dimensions don't have a clear
-    # conversion method to a color array and thus raise an error.
     if colors.ndim > 2:
-        raise ValueError(
-            trans._(
-                "Given colors input should contain one or two dimensions. Received array with {ndim} dimensions.",
-                deferred=True,
-                ndim=colors.ndim,
-            )
-        )
+        raise ValueError('Too many dims')
+    if colors.shape[1] not in (3, 4):
+        raise ValueError('Bad shape')
+    return _convert_array_to_correct_format(colors)
 
-    # User provided a list of numbers as color input. This input
-    # cannot be coerced into something understandable and thus
-    # will return an error.
-    if colors.shape[0] == 1 and colors.shape[1] not in {3, 4}:
-        raise ValueError(
-            trans._(
-                "Given color array has an unsupported format. Received the following array:\n{colors}\nA proper color array should have 3-4 columns with a row per data entry.",
-                deferred=True,
-                colors=colors,
-            )
-        )
 
-    # The user gave a list of colors, but it contains a wrong number
-    # of columns. This check will also drop Nx1 (2D) arrays, since
-    # numpy has vectors, and representing colors in this way
-    # (column vector-like) is redundant. However, this results in a
-    # warning and not a ValueError since we know the number of colors
-    # in this dataset, meaning we can save the napari session by
-    # rendering the data in white, which better than crashing.
-    if not 3 <= colors.shape[1] <= 4:
-        warnings.warn(
-            trans._(
-                "Given colors input should contain three or four columns. Received array with {shape} columns. Converting input to a white color array.",
-                deferred=True,
-                shape=colors.shape[1],
-            )
-        )
-        return np.ones((len(colors), 4), dtype=np.float32)
+def _multi_rgba_from_pydantic_colors(colors) -> np.ndarray:
+    if len(colors) == 0:
+        return np.zeros((1, 4), dtype=np.float32)
+    return np.array(
+        [_single_rgba_from_pydantic_color(color) for color in colors]
+    )
 
-    # Arrays with floats and ints can be safely converted to the proper format
-    if kind in ['f', 'i', 'u']:
-        return _convert_array_to_correct_format(colors)
 
-    else:
-        raise ValueError(
-            trans._(
-                "Data type of array ({color_dtype}) not supported.",
-                deferred=True,
-                color_dtype=colors.dtype,
-            )
-        )
+def _single_rgba_from_pydantic_color(color) -> np.ndarray:
+    if isinstance(color, str) and color in _color_dict._color_dict:
+        color = _color_dict._color_dict[color]
+    color = pydantic.color.Color(color)
+    rgba_tuple = color.as_rgb_tuple(alpha=True)
+    rgba_array = np.array(rgba_tuple[:3]) / 255
+    return np.append(rgba_array, rgba_tuple[-1]).astype(dtype=np.float32)
 
 
 def _convert_array_to_correct_format(colors: np.ndarray) -> np.ndarray:
@@ -307,53 +158,6 @@ def _convert_array_to_correct_format(colors: np.ndarray) -> np.ndarray:
     return np.atleast_2d(np.asarray(colors, dtype=np.float32))
 
 
-def _handle_str_list_like(colors: Sequence) -> np.ndarray:
-    """Converts lists or arrays filled with strings to the proper color array
-    format.
-
-    Parameters
-    ----------
-    colors : list-like
-        A sequence of string colors
-
-    Returns
-    -------
-    color_array : np.ndarray
-        Nx4, float32 color array
-    """
-    color_array = np.empty((len(colors), 4), dtype=np.float32)
-    for idx, c in enumerate(colors):
-        try:
-            color_array[idx, :] = _color_switch[type(c)](c)
-        except (ValueError, TypeError, KeyError):
-            raise ValueError(
-                trans._(
-                    "Invalid color found: {color} at index {idx}.",
-                    deferred=True,
-                    color=c,
-                    idx=idx,
-                )
-            )
-    return color_array
-
-
-def _handle_none(color) -> np.ndarray:
-    """Converts color given as None to black.
-
-    Parameters
-    ----------
-    color : NoneType
-        None value given as a color
-
-    Returns
-    -------
-    arr : np.ndarray
-        1x4 numpy array of float32 zeros
-
-    """
-    return np.zeros((1, 4), dtype=np.float32)
-
-
 def _normalize_color_array(colors: np.ndarray) -> np.ndarray:
     """Normalize all array values to the range [0, 1].
 
@@ -378,17 +182,6 @@ def _normalize_color_array(colors: np.ndarray) -> np.ndarray:
     out_of_bounds = out_of_bounds / norm[:, np.newaxis]
     colors[out_of_bounds_idx] = out_of_bounds
     return colors.astype(np.float32)
-
-
-_color_switch: Dict[Any, Callable] = {
-    str: _handle_str,
-    np.str_: _handle_str,
-    list: _handle_list_like,
-    tuple: _handle_list_like,
-    types.GeneratorType: _handle_generator,
-    np.ndarray: _handle_array,
-    type(None): _handle_none,
-}
 
 
 def _create_hex_to_name_dict():
