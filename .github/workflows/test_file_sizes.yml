@@ -1,0 +1,17 @@
+name: Test file sizes
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  filesizes:
+    name: Check file sizes
+    runs-on: ubuntu-latest
+    steps:
+      - name: LFS-warning
+        uses: ActionsDesk/lfs-warning@v3.1
+        with:
+          filesizelimit: 1MB
+
