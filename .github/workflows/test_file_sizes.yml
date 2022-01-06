@@ -1,7 +1,7 @@
 name: Test file sizes
 
 on:
-  pull_request:
+  pull_request_target:
     branches:
       - main
 
@@ -10,6 +10,7 @@ jobs:
     name: Check file sizes
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
       - name: LFS-warning
         uses: ActionsDesk/lfs-warning@v3.1
         with:
