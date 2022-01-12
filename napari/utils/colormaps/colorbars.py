@@ -11,8 +11,7 @@ def make_colorbar(cmap, size=(18, 28), horizontal=True):
     size : 2-tuple
         Shape of colorbar.
     horizontal : bool
-        If True colobar is oriented horizontal, otherwise it is oriented
-        vertical.
+        If True this is oriented horizontally, otherwise vertically.
 
     Returns
     -------

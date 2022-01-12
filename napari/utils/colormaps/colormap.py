@@ -1,54 +1,111 @@
-from enum import Enum
-from typing import Optional
+from enum import auto
+from typing import Any, Optional
 
 import numpy as np
-from pydantic import PrivateAttr, validator
+from pydantic import validator
 
 from ..events import EventedModel
 from ..events.custom_types import Array
+from ..misc import StringEnum
 from ..translations import trans
 from .colorbars import make_colorbar
 from .standardize_color import transform_color
 
 
-class ColormapInterpolationMode(str, Enum):
-    """INTERPOLATION: Interpolation mode for colormaps.
+class ColormapInterpolationMode(StringEnum):
+    """Interpolation mode for colormaps.
 
-    Selects an interpolation mode for the colormap.
-            * linear: colors are defined by linear interpolation between
-              colors of neighboring controls points.
-            * zero: colors are defined by the value of the color in the
-              bin between by neighboring controls points.
+    Attributes
+    ----------
+    LINEAR
+        Colors are defined by linear interpolation between colors of
+        neighboring control points.
+    ZERO
+        Colors are defined by the value of the color in the bin between
+        neighboring control points.
     """
 
-    LINEAR = 'linear'
-    ZERO = 'zero'
+    LINEAR = auto()
+    ZERO = auto()
 
 
 class Colormap(EventedModel):
-    """Colormap that relates intensity values to colors.
+    """Defines a map from quantitative values to colors.
+
+    This is typically used to map image pixel values to displayed colors,
+    but in general can be used with any quantitative input values.
+    The input values should typically be floating point values in the closed
+    interval [0, 1], as any values outside this interval will be clamped.
+
+    The correspondence between input values and colors is mostly defined by
+    the `colors` and `controls` array attributes.
+    Each control point in the `controls` array defines an input value in the
+    closed interval [0, 1] and corresponds to an output RGBA color defined
+    at the same index in the `colors` array.
+
+    The mapping is performed by calling the `map` method with an array of
+    input values. Typically, an input value will not exactly equal one
+    of the control point values, so cannot be exactly mapped to a color.
+    Instead, the output color is interpolated from the colors that correspond
+    to the control points that are neighbors of the input value.
+    A value of 0 or less is mapped to the first color, and a value of 1 or more
+    is mapped to the last color.
 
     Attributes
     ----------
     colors : array, shape (N, 4)
-        Data used in the colormap.
+        The colors to which this maps, where each row is an RGBA color.
+    controls : array, shape (N,) or (N + 1,)
+        The quantitative control points that define how input values are
+        mapped to colors.
+        The first value must be 0, the last value must be 1, all others
+        should be in the open interval (0, 1) and sorted in increasing order.
+        The required length of this depends on the length of colors and the
+        desired interpolation mode.
+    interpolation : {'linear', 'zero'}
+        The mode used to interpolate colors.
+        If 'linear', there is a one-to-one correspondence between control
+        points and colors, so that `len(controls) == len(colors)`.
+        If 'zero', the control points represent the edges of histogram bins
+        with one color per bin, so that `len(controls) == len(colors) + 1`.
     name : str
-        Name of the colormap.
-    display_name : str
-        Display name of the colormap.
-    controls : array, shape (N,) or (N+1,)
-        Control points of the colormap.
-    interpolation : str
-        Colormap interpolation mode, either 'linear' or
-        'zero'. If 'linear', ncontrols = ncolors (one
-        color per control point). If 'zero', ncontrols
-        = ncolors+1 (one color per bin).
+        A name that uniquely identifies this colormap instance among others.
+    _display_name : str
+        The display name that may be a translation of the name.
+
+    Examples
+    --------
+
+    Define a colormap that uniformly maps values in [0, 1] to red, green, and blue
+    colors specified as RGB lists.
+
+    >>> colormap = Colormap(
+    ...     colors=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    ...     controls=[0, 0.5, 1],
+    ...     name='rgb',
+    ... )
+    >>> colormap.map(-1)
+    array([[1., 0., 0., 1.]])
+    >>> colormap.map(0)
+    array([[1., 0., 0., 1.]])
+    >>> colormap.map(0.25)
+    array([[0.5, 0.5, 0., 1.]])
+    >>> colormap.map(0.5)
+    array([[0., 1., 0., 1.]])
+    >>> colormap.map(1)
+    array([[0., 0., 1., 1.]])
+    >>> colormap.map(1.5)
+    array([[0., 0., 1., 1.]])
+
+    See Also
+    --------
+    ColormapInterpolationMode
     """
 
     # fields
     colors: Array[float, (-1, 4)]
     name: str = 'custom'
-    _display_name: Optional[str] = PrivateAttr(None)
+    _display_name: Optional[str] = None
     interpolation: ColormapInterpolationMode = ColormapInterpolationMode.LINEAR
     controls: Array[float, (-1,)] = None
 
@@ -59,12 +116,62 @@ class Colormap(EventedModel):
         super().__init__(colors=colors, **data)
         self._display_name = display_name
 
-    # validators
+    def __iter__(self):
+        yield from (self.colors, self.controls, self.interpolation)
+
+    def map(self, values: Any) -> np.ndarray:
+        """Maps input values to RGBA colors.
+
+        Parameters
+        ----------
+        values
+            The input values to map. May be a single scalar value or
+            a 1D array-like. Typically floating point values in [0, 1].
+
+        Returns
+        -------
+        np.ndarray
+            An (N, 4) array of colors where each row is an RGBA color.
+        """
+        values = np.atleast_1d(values)
+        if self.interpolation == ColormapInterpolationMode.LINEAR:
+            # One color per control point
+            cols = [
+                np.interp(values, self.controls, self.colors[:, i])
+                for i in range(4)
+            ]
+            cols = np.stack(cols, axis=1)
+        elif self.interpolation == ColormapInterpolationMode.ZERO:
+            # One color per bin
+            indices = np.clip(
+                np.searchsorted(self.controls, values) - 1, 0, len(self.colors)
+            )
+            cols = self.colors[indices.astype(np.int32)]
+        else:
+            raise ValueError(
+                trans._(
+                    'Unrecognized Colormap Interpolation Mode',
+                    deferred=True,
+                )
+            )
+
+        return cols
+
+    @property
+    def colorbar(self):
+        """The colorbar used to visualize this with the default shape and horizontal orientation.
+
+        See Also
+        --------
+        make_colorbar
+        """
+        return make_colorbar(self)
+
     @validator('colors', pre=True)
     def _ensure_color_array(cls, v):
         return transform_color(v)
 
-    # controls validator must be called even if None for correct initialization
+    # Set always=True to handle controls == None.
     @validator('controls', pre=True, always=True)
     def _check_controls(cls, v, values):
         # If no control points provided generate defaults
@@ -110,35 +217,3 @@ class Colormap(EventedModel):
             )
 
         return v
-
-    def __iter__(self):
-        yield from (self.colors, self.controls, self.interpolation)
-
-    def map(self, values):
-        values = np.atleast_1d(values)
-        if self.interpolation == ColormapInterpolationMode.LINEAR:
-            # One color per control point
-            cols = [
-                np.interp(values, self.controls, self.colors[:, i])
-                for i in range(4)
-            ]
-            cols = np.stack(cols, axis=1)
-        elif self.interpolation == ColormapInterpolationMode.ZERO:
-            # One color per bin
-            indices = np.clip(
-                np.searchsorted(self.controls, values) - 1, 0, len(self.colors)
-            )
-            cols = self.colors[indices.astype(np.int32)]
-        else:
-            raise ValueError(
-                trans._(
-                    'Unrecognized Colormap Interpolation Mode',
-                    deferred=True,
-                )
-            )
-
-        return cols
-
-    @property
-    def colorbar(self):
-        return make_colorbar(self)

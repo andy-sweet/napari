@@ -11,7 +11,22 @@ from .standardize_color import transform_color
 
 
 class CategoricalColormap(EventedModel):
-    """Colormap that relates categorical values to colors.
+    """Defines a map from categorical values to colors.
+
+    This is typically used to layer feature values to displayed colors.
+    In most cases, only one of the `colormap` and `fallback_color` parameters
+    is specified on initialization.
+    If the mapping is known, then the `colormap` should be specified as a
+    dictionary that directly maps each categorical value to an RGBA color.
+    If the mapping is unknown or there is no need to explicitly define it,
+    then the `fallback_color` cycle should be specified as a sequence of
+    desired output colors.
+
+    The mapping is performed by calling the `map` method with an array of
+    input values. If an input value is in `colormap`, then it is mapped to
+    its corresponding color entry. If it is absent, it is mapped to the next
+    color in the `fallback_color` cycle, and the new mapping entry is added
+    to `colormap`.
 
     Parameters
     ----------
@@ -23,6 +38,53 @@ class CategoricalColormap(EventedModel):
         to a ColorCycle. An array of the values contained in the
         ColorCycle.cycle is stored in ColorCycle.values.
         The default value is a cycle of all white.
+
+    Examples
+    --------
+
+    Define a colormap from a dictionary only.
+
+    >>> colormap = CategoricalColormap(
+    ...         colormap={
+    ...             'astrocyte': [1, 0, 0],
+    ...             'oligodendrocyte': [0, 1, 0],
+    ...             'ependymal': [0, 0, 1],
+    ...         },
+    ... )
+    >>> colormap.map('astrocyte')
+    array([1., 0., 0., 1.])
+    >>> colormap.map('radial')
+    array([1., 1., 1., 1.])
+    >>> colormap.colormap
+    {
+        'astrocyte': array([1., 0., 0., 1.],
+        'oligodendrocyte': array([0., 1., 0., 1.]),
+        'ependymal': array([0., 0., 1., 1.]),
+        'radial': array([1., 1., 1., 0]),
+    }
+
+    Define a colormap from a color cycle only.
+
+    >>> colormap = CategoricalColormap(
+    ...         fallback_color=[
+    ...             [1, 0, 0],
+    ...             [0, 1, 0],
+    ...             [0, 0, 1],
+    ...         ],
+    ... )
+    >>> colormap.map('astrocyte')
+    array([1., 0., 0., 1.])
+    >>> colormap.colormap
+    {
+        'astrocyte': array([1., 0., 0., 1.]),
+    }
+    >>> colormap.map('radial')
+    array([0., 1., 0., 1.])
+    >>> colormap.colormap
+    {
+        'astrocyte': array([1., 0., 0., 1.]),
+        'radial': array([0., 1., 0., 1.]),
+    }
     """
 
     colormap: Dict[Any, Array[np.float32, (4,)]] = {}
@@ -34,11 +96,13 @@ class CategoricalColormap(EventedModel):
         return transformed_colormap
 
     def map(self, color_properties: Union[list, np.ndarray]) -> np.ndarray:
-        """Map an array of values to an array of colors
+        """Maps input values to RGBA colors.
+
         Parameters
         ----------
         color_properties : Union[list, np.ndarray]
             The property values to be converted to colors.
+
         Returns
         -------
         colors : np.ndarray
