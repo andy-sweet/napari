@@ -2,9 +2,12 @@
 
 # Colors and colormaps
 
-This document describes how to programmatically define colors and colormaps in napari.
-It is intended for users of napari that are comfortable using the napari API and
-developers who want to include color as part of something they are building.
+This document is a technical reference that describes how to use the API
+to define colors and colormaps in napari.
+It is intended for developers who want to include color as part of something
+they are building.
+See the image layer and points layer tutorials to learn more about how use colors
+and colormaps, and the video annotation tutorial for a specific use case.
 
 
 ## Colors
@@ -17,7 +20,86 @@ For example, the face color of all points in a layer can be defined as red.
 In [1]: points.face_color = 'red'
 ```
 
+### Specifying single colors
+
+In the example above, the single face color could have been specified as
+red in many equivalent ways.
+
+| Input type | Example values |
+| :--------- | :------------- |
+| RGB or RGBA (red, green, blue, alpha) array-like of floats in `[0, 1]` | `(1, 0, 0)`<br/>`[1, 0, 0, 1]`<br/>`np.array([1, 0, 0])` |
+| Case insensitive RGB or RGBA hex code | `'#ff0000'`<br/>`'#FF0000FF'` |
+| Case insensitive shorthand RGB or RGBA hex code | `'#f00'`<br/>`'#F00F'` |
+| Lower case [CSS3 name](https://www.w3.org/TR/css-color-3/#svg-color) | `'red'` |
+| Lower case [matplotlib single character name](https://matplotlib.org/stable/tutorials/colors/colors.html#specifying-colors) | `'r'` |
+
+Internally, napari represents a single color as an RGBA numpy array of `shape=(4,)`
+and `dtype=np.float32` where the values are in the closed interval `[0, 1]`.
+Each element of this array defines the contribution of each RGBA color component to the overall color,
+where a value of 0 means there is no contribution and a value of 1 means that component is saturated.
+
+The supported input types above are coerced to this internal representation using the
+[`transform_color`](https://github.com/napari/napari/blob/5f96d5d814aad697c367bdadbb1a57750e2114ad/napari/utils/colormaps/standardize_color.py#L33)
+function.
+For example, a purely red color is coerced to the array `np.array([1, 0, 0, 1])`
+where the red component is saturated with a value of 1, but the green and blue
+components do not contribute at all with values of 0.
+
+The last element (alpha) similarly describes the opacity of the color, where a value of 0 corresponds to
+transparent and a value of 1 corresponds to opaque.
+In the case that the alpha value is omitted and only the RGB values are given (e.g. `[1, 0, 0]`),
+a default alpha value of 1 will be used to create an opaque color (e.g. `np.array([1, 0, 0, 1])`).
+
+Most colors are represented as a soft mix of the RGB color components and an opaque alpha value,
+such as [cornflower blue](https://en.wikipedia.org/wiki/Cornflower_blue), which could be represented as
+`np.array([0.395, 0.585, 0.930, 1])`.
+
+
+### Specifying multiple colors
+
+Sometimes there is a need to specify many colors at once.
+
+| Type                | Example values |
+| ------------------- | ------------- |
+| `(N,)` array-like of names | `['red', 'blue']`<br/>`('red', 'blue')`<br/>`np.array(['red', 'blue'])` |
+| Generator of names  | `c for c in ('red', 'blue')` |
+| `(N, 3)` RGB or `(N, 4)` RGBA array-like of floats in `[0, 1]` | `[(1, 0, 0, 1), (0, 0, 1, 1)]`<br/>`np.array([[1, 0, 0], [0, 0, 1]])` |
+
+
+For example, the face colors of all the points in a layer can be specified individually
+
+```python
+In [3]: points.face_color = ['red', 'lime', 'blue']
+```
+
+which will then be coerced into the standard array form.
+
+```python
+In [4]: points.face_color
+Out[4]:
+array([[1., 0., 0., 1.],
+       [0., 1., 0., 1.],
+       [0., 0., 1., 1.]])
+```
+
+For the most part, any tuple, list, array, or generator of single colors
+is acceptable input when specifying multiple colors.
+
+However, when specifying many colors in a sequence or generator *do not mix different single color types*.
+For example, something like
+
+```python
+In [5]: points.face_color = np.array(['red', (0, 1, 0), '#0000ff'])
+```
+
+is not supported or guaranteed to work.
+
+
+
 ### Standard form
+
+TODO: possibly remove this header, or rename to internal representation or something else
+TODO: consider moving this after supported input
 
 Internally, napari typically coerces an input color value like `'red'` to an RGBA (red, green, blue, alpha)
 array with `shape=(4,)` and `dtype=np.float32` where the values are in `[0, 1]`.
@@ -54,106 +136,13 @@ vispy's `Color` and `ColorArray`, which are not accepted by `transform_color`.
 ```
 
 
-### Supported single color input
-
-The single face color could have been defined as red in many equivalent ways.
-
-```python
-# CSS3 name
-points.face_color = 'red'
-
-# matplotlib single character name
-points.face_color = 'r'
-
-# RGB or RGBA hex-code
-points.face_color = '#ff0000'
-points.face_color = '#ff0000ff'
-
-# Short-hand RGB or RGBA hex-code
-points.face_color = '#f00'
-points.face_color = '#f00f'
-
-# RGB or RGBA tuple, list, or array
-points.face_color = (1, 0, 0)
-points.face_color = (1, 0, 0, 1)
-points.face_color = [1, 0, 0]
-points.face_color = [1, 0, 0, 1]
-points.face_color = np.array([1, 0, 0])
-points.face_color = np.array([1, 0, 0, 1])
-```
-
-A named color string must either be from the [CSS3 specification](https://www.w3.org/TR/css-color-3/#svg-color)
-or must be one of [matplotlib's single character shorthand names](https://matplotlib.org/stable/tutorials/colors/colors.html#specifying-colors).
-
-In the case that the alpha value is omitted and only the RGB values are given (e.g. `[1, 0, 0]`),
-a default alpha value of 1 will be used to create an opaque color.
 
 
-### Supported multiple color input
-
-Sometimes there is a need to specify many colors at once.
-For example, the face colors of all the points in a layer can be specified individually
-
-```python
-In [3]: points.face_color = ['red', 'lime', 'blue']
-```
-
-which will then be coerced into the standard array form.
-
-```python
-In [4]: points.face_color
-Out[4]:
-array([[1., 0., 0., 1.],
-       [0., 1., 0., 1.],
-       [0., 0., 1., 1.]])
-```
-
-For the most part, any tuple, list, array, or generator of single colors
-is acceptable input when specifying multiple colors.
-
-```python
-# Tuple, list, array, or generator of names
-points.face_color = ('red', 'lime', 'blue')
-points.face_color = ['red', 'lime', 'blue']
-points.face_color = np.array(['red', 'lime', 'blue'])
-points.face_color = c for c in ('red', 'lime', 'blue')
-
-# List of RGB or RGBA tuples or lists
-points.face_color = [
-    (1, 0, 0),
-    (0, 1, 0),
-    (0, 0, 1),
-]
-points.face_color = [
-    [1, 0, 0, 1],
-    [0, 1, 0, 1],
-    [0, 0, 1, 1],
-]
-
-# (N, 3) RGB or (N, 4) RGBA array
-points.face_color = np.array([
-    [1, 0, 0],
-    [0, 1, 0],
-    [0, 0, 1],
-])
-points.face_color = np.array([
-    [1, 0, 0, 1],
-    [0, 1, 0, 1],
-    [0, 0, 1, 1],
-])
-```
-
-However, when specifying many colors in a sequence or generator *do not mix different single color types*.
-For example, something like
-
-```python
-In [5]: points.face_color = np.array(['red', (0, 1, 0), '#0000ff'])
-```
-
-is not supported or guaranteed to work.
 
 
 ## Colormaps
+
+TODO: some of this might belong in the Colormap docstring.
 
 In napari, a colormap maps data values to RGBA colors and is used in at least two ways.
 
@@ -166,7 +155,7 @@ so napari has two different types of colormaps to handle those two cases.
 
 ### Continuous maps
 
-The [`Colormap`](https://github.com/napari/napari/blob/c86cf87a788b1bbe62afc0b92b9ebdca1331a3e5/napari/utils/colormaps/colormap.py#L28)
+The {class}`napari.utils.Colormap`
 class defines a map from a continuous or real value to a color.
 For example, a 2D image of floats between 0 and 1 can be mapped to colors as follows.
 
@@ -216,6 +205,8 @@ By default colormap names come from one of the following sources.
 - Standard optical primary and secondary colors: `'red', 'green', 'blue', 'yellow', 'magenta', 'cyan'`.
 - [BOP (blue, orange, purple) complementary colormap](https://github.com/cleterrier/ChrisLUTs#bop) names: `'bop blue', 'bop orange', 'bop purple'`.
 
+TODO: consider autogenerating these colormaps' colorbars with jb
+
 More specifically, the available colormap names can be listed at any time.
 
 ```python
@@ -247,8 +238,7 @@ pass an instance of a napari `Colormap`.
 For example, the same black to blue colormap as above can be explicitly created as
 
 ```python
-from napari.utils.colormaps import Colormap
-image.colormap = Colormap(
+image.colormap = napari.utils.Colormap(
     colors=[[0, 0, 0, 1], [0, 0, 1, 1]],
     name='blue',
     interpolation='linear',
