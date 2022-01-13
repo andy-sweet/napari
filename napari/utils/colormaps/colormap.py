@@ -96,10 +96,6 @@ class Colormap(EventedModel):
     array([[0., 0., 1., 1.]])
     >>> colormap.map(1.5)
     array([[0., 0., 1., 1.]])
-
-    See Also
-    --------
-    ColormapInterpolationMode
     """
 
     # fields
