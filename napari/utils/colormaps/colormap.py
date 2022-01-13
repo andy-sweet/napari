@@ -38,12 +38,12 @@ class Colormap(EventedModel):
     interval [0, 1], as any values outside this interval will be clamped.
 
     The correspondence between input values and colors is mostly defined by
-    the `colors` and `controls` array attributes.
-    Each control point in the `controls` array defines an input value in the
+    the ``colors`` and ``controls`` array attributes.
+    Each control point in the ``controls`` array defines an input value in the
     closed interval [0, 1] and corresponds to an output RGBA color defined
-    at the same index in the `colors` array.
+    at the same index in the ``colors`` array.
 
-    The mapping is performed by calling the `map` method with an array of
+    The mapping is performed by calling the ``map`` method with an array of
     input values. Typically, an input value will not exactly equal one
     of the control point values, so cannot be exactly mapped to a color.
     Instead, the output color is interpolated from the colors that correspond
@@ -65,9 +65,9 @@ class Colormap(EventedModel):
     interpolation : {'linear', 'zero'}
         The mode used to interpolate colors.
         If 'linear', there is a one-to-one correspondence between control
-        points and colors, so that `len(controls) == len(colors)`.
+        points and colors, so that ``len(controls) == len(colors)``.
         If 'zero', the control points represent the edges of histogram bins
-        with one color per bin, so that `len(controls) == len(colors) + 1`.
+        with one color per bin, so that ``len(controls) == len(colors) + 1``.
     name : str
         A name that uniquely identifies this colormap instance among others.
     _display_name : str
