@@ -14,21 +14,21 @@ class CategoricalColormap(EventedModel):
     """Defines a map from categorical values to colors.
 
     This is typically used to layer feature values to displayed colors.
-    In most cases, only one of the `colormap` and `fallback_color` parameters
+    In most cases, only one of the ``colormap`` and ``fallback_color`` parameters
     is specified on initialization.
-    If the mapping is known, then the `colormap` should be specified as a
+    If the mapping is known, then the ``colormap`` should be specified as a
     dictionary that directly maps each categorical value to an RGBA color.
     If the mapping is unknown or there is no need to explicitly define it,
-    then the `fallback_color` cycle should be specified as a sequence of
+    then the ``fallback_color`` cycle should be specified as a sequence of
     desired output colors.
 
-    The mapping is performed by calling the `map` method with an array of
-    input values. If an input value is in `colormap`, then it is mapped to
+    The mapping is performed by calling the ``map`` method with an array of
+    input values. If an input value is in ``colormap``, then it is mapped to
     its corresponding color entry. If it is absent, it is mapped to the next
-    color in the `fallback_color` cycle, and the new mapping entry is added
-    to `colormap`.
+    color in the ``fallback_color`` cycle, and the new mapping entry is added
+    to ``colormap``.
 
-    Parameters
+    Attributes
     ----------
     colormap : Dict[Any, np.ndarray]
         The mapping between categorical property values and color.
