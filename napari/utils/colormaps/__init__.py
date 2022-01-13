@@ -1,3 +1,4 @@
+from .categorical_colormap import CategoricalColormap
 from .colorbars import make_colorbar
 from .colormap import Colormap
 from .colormap_utils import (

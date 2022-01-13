@@ -8,6 +8,7 @@ from scipy import ndimage as ndi
 
 from ...utils import config
 from ...utils._dtype import normalize_dtype
+from ...utils.color_transformations import transform_color
 from ...utils.colormaps import (
     color_dict_to_colormap,
     label_colormap,
@@ -22,7 +23,6 @@ from ...utils.translations import trans
 from ..base import no_op
 from ..image._image_utils import guess_multiscale
 from ..image.image import _ImageBase
-from ..utils.color_transformations import transform_color
 from ..utils.layer_utils import (
     _features_from_properties,
     _features_to_properties,

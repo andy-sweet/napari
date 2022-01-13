@@ -4,10 +4,7 @@ from typing import Dict, Union
 
 import numpy as np
 
-from ...layers.utils.color_transformations import (
-    transform_color,
-    transform_color_cycle,
-)
+from ..color_transformations import transform_color, transform_color_cycle
 from ..translations import trans
 
 

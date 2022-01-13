@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import gmean
 
+from ...utils.color_transformations import ColorType
 from ...utils.colormaps import Colormap, ValidColormapArg
 from ...utils.colormaps.standardize_color import (
     get_color_namelist,
@@ -22,7 +23,6 @@ from ...utils.translations import trans
 from ..base import Layer, no_op
 from ..utils._color_manager_constants import ColorMode
 from ..utils.color_manager import ColorManager
-from ..utils.color_transformations import ColorType
 from ..utils.interactivity_utils import displayed_plane_from_nd_line_segment
 from ..utils.layer_utils import (
     _append_features,

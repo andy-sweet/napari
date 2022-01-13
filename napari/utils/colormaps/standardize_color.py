@@ -10,7 +10,7 @@ a cascade of other, private, function in the module to do the hard work
 of converting the input. This function will either be called directly, or
 used by the function "transform_color_with_defaults", which is a helper
 function for the layer objects located in
-``layers.utils.color_transformations.py``.
+``napari.utils.color_transformations.py``.
 
 In general, when handling colors we try to catch invalid color
 representations, warn the users of their misbehaving and return a default

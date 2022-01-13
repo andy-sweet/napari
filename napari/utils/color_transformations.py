@@ -9,9 +9,9 @@ from typing import Union
 
 import numpy as np
 
-from ...utils.colormaps.colormap_utils import ColorType
-from ...utils.colormaps.standardize_color import transform_color
-from ...utils.translations import trans
+from .colormaps.colormap_utils import ColorType
+from .colormaps.standardize_color import transform_color
+from .translations import trans
 
 
 def transform_color_with_defaults(

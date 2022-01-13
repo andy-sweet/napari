@@ -5,6 +5,11 @@ from typing import Any, Dict, Optional, Tuple, Union
 import numpy as np
 from pydantic import root_validator, validator
 
+from ...utils.color_transformations import (
+    normalize_and_broadcast_colors,
+    transform_color,
+    transform_color_with_defaults,
+)
 from ...utils.colormaps import Colormap
 from ...utils.colormaps.categorical_colormap import CategoricalColormap
 from ...utils.colormaps.colormap_utils import ColorType, ensure_colormap
@@ -17,11 +22,6 @@ from .color_manager_utils import (
     _validate_cycle_mode,
     guess_continuous,
     is_color_mapped,
-)
-from .color_transformations import (
-    normalize_and_broadcast_colors,
-    transform_color,
-    transform_color_with_defaults,
 )
 
 
