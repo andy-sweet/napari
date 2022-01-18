@@ -42,7 +42,7 @@ class CategoricalColormap(EventedModel):
     Examples
     --------
 
-    Define a colormap from a dictionary only.
+    Define a colormap from a dictionary from string labels to RGB color lists.
 
     >>> colormap = CategoricalColormap(
     ...         colormap={
@@ -52,18 +52,16 @@ class CategoricalColormap(EventedModel):
     ...         },
     ... )
     >>> colormap.map('astrocyte')
-    array([1., 0., 0., 1.])
+    array([[1., 0., 0., 1.]], dtype=float32)
     >>> colormap.map('radial')
-    array([1., 1., 1., 1.])
+    array([[1., 1., 1., 1.]], dtype=float32)
     >>> colormap.colormap
-    {
-        'astrocyte': array([1., 0., 0., 1.],
-        'oligodendrocyte': array([0., 1., 0., 1.]),
-        'ependymal': array([0., 0., 1., 1.]),
-        'radial': array([1., 1., 1., 0]),
-    }
+    {'astrocyte': array([1., 0., 0., 1.], dtype=float32),
+    'oligodendrocyte': array([0., 1., 0., 1.], dtype=float32),
+    'ependymal': array([0., 0., 1., 1.], dtype=float32),
+    'radial': array([1., 1., 1., 1.], dtype=float32)}
 
-    Define a colormap from a color cycle only.
+    Define a colormap from a color cycle specified as RGB color lists.
 
     >>> colormap = CategoricalColormap(
     ...         fallback_color=[
@@ -73,18 +71,14 @@ class CategoricalColormap(EventedModel):
     ...         ],
     ... )
     >>> colormap.map('astrocyte')
-    array([1., 0., 0., 1.])
+    array([[1., 0., 0., 1.]], dtype=float32)
     >>> colormap.colormap
-    {
-        'astrocyte': array([1., 0., 0., 1.]),
-    }
+    {'astrocyte': array([1., 0., 0., 1.], dtype=float32)}
     >>> colormap.map('radial')
-    array([0., 1., 0., 1.])
+    array([[0., 1., 0., 1.]], dtype=float32)
     >>> colormap.colormap
-    {
-        'astrocyte': array([1., 0., 0., 1.]),
-        'radial': array([0., 1., 0., 1.]),
-    }
+    {'astrocyte': array([1., 0., 0., 1.], dtype=float32),
+    'radial': array([0., 1., 0., 1.], dtype=float32)}
     """
 
     colormap: Dict[Any, Array[np.float32, (4,)]] = {}

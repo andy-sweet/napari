@@ -9,5 +9,4 @@ warnings.warn(
         deferred=True,
     ),
     FutureWarning,
-    stacklevel=2,
 )

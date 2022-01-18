@@ -15,11 +15,14 @@ from .standardize_color import transform_color
 class ColormapInterpolationMode(StringEnum):
     """Interpolation mode for colormaps.
 
-    Selects an interpolation mode for the colormap.
-        * linear: colors are defined by linear interpolation between
-          colors of neighboring control points.
-        * zero: colors are defined by the value of the color in the
-          bin between by neighboring control points.
+    Attributes
+    ----------
+    LINEAR
+        Colors are defined by linear interpolation between
+        colors of neighboring control points.
+    ZERO
+        Colors are defined by the value of the color in the
+        bin between by neighboring control points.
     """
 
     LINEAR = auto()
@@ -74,8 +77,8 @@ class Colormap(EventedModel):
     Examples
     --------
 
-    Define and use a colormap that uniformly maps values in [0, 1]
-    to red, green, and blue colors specified as RGB lists.
+    Define a named colormap that uniformly maps values in [0, 1] to
+    red, green, and blue colors specified as RGB lists.
 
     >>> colormap = Colormap(
     ...     colors=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -87,7 +90,7 @@ class Colormap(EventedModel):
     >>> colormap.map(0)
     array([[1., 0., 0., 1.]])
     >>> colormap.map(0.25)
-    array([[0.5, 0.5, 0., 1.]])
+    array([[0.5, 0.5, 0. , 1. ]])
     >>> colormap.map(0.5)
     array([[0., 1., 0., 1.]])
     >>> colormap.map(1)
