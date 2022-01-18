@@ -15,14 +15,11 @@ from .standardize_color import transform_color
 class ColormapInterpolationMode(StringEnum):
     """Interpolation mode for colormaps.
 
-    Attributes
-    ----------
-    LINEAR
-        Colors are defined by linear interpolation between colors of
-        neighboring control points.
-    ZERO
-        Colors are defined by the value of the color in the bin between
-        neighboring control points.
+    Selects an interpolation mode for the colormap.
+        * linear: colors are defined by linear interpolation between
+          colors of neighboring control points.
+        * zero: colors are defined by the value of the color in the
+          bin between by neighboring control points.
     """
 
     LINEAR = auto()
@@ -54,30 +51,31 @@ class Colormap(EventedModel):
     Attributes
     ----------
     colors : array, shape (N, 4)
-        The colors to which this maps, where each row is an RGBA color.
+        The RGBA colors to which the control points in ``controls`` map,
+        where each row a color.
+    name : str
+        A name that uniquely identifies this colormap instance among others.
+    display_name : str
+        The display name that may be a translation of the name.
     controls : array, shape (N,) or (N + 1,)
         The quantitative control points that define how input values are
-        mapped to colors.
-        The first value must be 0, the last value must be 1, all others
-        should be in the open interval (0, 1) and sorted in increasing order.
-        The required length of this depends on the length of colors and the
-        desired interpolation mode.
+        mapped to ``colors``.
+        The first value must be 0, the last value must be 1, and all others
+        should be in the open interval (0, 1) sorted in increasing order.
+        The required length of this depends on the length of ``colors`` and
+        the ``interpolation`` mode.
     interpolation : {'linear', 'zero'}
         The mode used to interpolate colors.
         If 'linear', there is a one-to-one correspondence between control
         points and colors, so that ``len(controls) == len(colors)``.
         If 'zero', the control points represent the edges of histogram bins
         with one color per bin, so that ``len(controls) == len(colors) + 1``.
-    name : str
-        A name that uniquely identifies this colormap instance among others.
-    _display_name : str
-        The display name that may be a translation of the name.
 
     Examples
     --------
 
-    Define a colormap that uniformly maps values in [0, 1] to red, green, and blue
-    colors specified as RGB lists.
+    Define and use a colormap that uniformly maps values in [0, 1]
+    to red, green, and blue colors specified as RGB lists.
 
     >>> colormap = Colormap(
     ...     colors=[[1, 0, 0], [0, 1, 0], [0, 0, 1]],
@@ -112,57 +110,7 @@ class Colormap(EventedModel):
         super().__init__(colors=colors, **data)
         self._display_name = display_name
 
-    def __iter__(self):
-        yield from (self.colors, self.controls, self.interpolation)
-
-    def map(self, values: Any) -> np.ndarray:
-        """Maps input values to RGBA colors.
-
-        Parameters
-        ----------
-        values
-            The input values to map. May be a single scalar value or
-            a 1D array-like. Typically floating point values in [0, 1].
-
-        Returns
-        -------
-        np.ndarray
-            An (N, 4) array of colors where each row is an RGBA color.
-        """
-        values = np.atleast_1d(values)
-        if self.interpolation == ColormapInterpolationMode.LINEAR:
-            # One color per control point
-            cols = [
-                np.interp(values, self.controls, self.colors[:, i])
-                for i in range(4)
-            ]
-            cols = np.stack(cols, axis=1)
-        elif self.interpolation == ColormapInterpolationMode.ZERO:
-            # One color per bin
-            indices = np.clip(
-                np.searchsorted(self.controls, values) - 1, 0, len(self.colors)
-            )
-            cols = self.colors[indices.astype(np.int32)]
-        else:
-            raise ValueError(
-                trans._(
-                    'Unrecognized Colormap Interpolation Mode',
-                    deferred=True,
-                )
-            )
-
-        return cols
-
-    @property
-    def colorbar(self):
-        """The colorbar used to visualize this with the default shape and horizontal orientation.
-
-        See Also
-        --------
-        make_colorbar
-        """
-        return make_colorbar(self)
-
+    # validators
     @validator('colors', pre=True)
     def _ensure_color_array(cls, v):
         return transform_color(v)
@@ -213,3 +161,49 @@ class Colormap(EventedModel):
             )
 
         return v
+
+    def __iter__(self):
+        yield from (self.colors, self.controls, self.interpolation)
+
+    def map(self, values: Any) -> np.ndarray:
+        """Maps input values to RGBA colors.
+
+        Parameters
+        ----------
+        values
+            The input values to map. May be a single scalar value or
+            a 1D array-like. Typically floating point values in [0, 1].
+
+        Returns
+        -------
+        np.ndarray
+            An (N, 4) array of colors where each row is an RGBA color.
+        """
+        values = np.atleast_1d(values)
+        if self.interpolation == ColormapInterpolationMode.LINEAR:
+            # One color per control point
+            cols = [
+                np.interp(values, self.controls, self.colors[:, i])
+                for i in range(4)
+            ]
+            cols = np.stack(cols, axis=1)
+        elif self.interpolation == ColormapInterpolationMode.ZERO:
+            # One color per bin
+            indices = np.clip(
+                np.searchsorted(self.controls, values) - 1, 0, len(self.colors)
+            )
+            cols = self.colors[indices.astype(np.int32)]
+        else:
+            raise ValueError(
+                trans._(
+                    'Unrecognized Colormap Interpolation Mode',
+                    deferred=True,
+                )
+            )
+
+        return cols
+
+    @property
+    def colorbar(self):
+        """The default image array used to visualize this colormap as a colorbar."""
+        return make_colorbar(self)
