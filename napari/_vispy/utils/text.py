@@ -4,7 +4,7 @@ import numpy as np
 from vispy.scene.visuals import Text
 
 from napari.layers import Points, Shapes
-from napari.layers.utils._text_constants import TextMode
+from napari.layers.utils.string_encoding import ConstantStringEncoding
 
 
 def update_text(
@@ -54,19 +54,22 @@ def update_text(
     node.pos = positions
     node.anchors = (anchor_x, anchor_y)
 
-    text_manager = layer.text
-    node.rotation = text_manager.rotation
-    node.color = text_manager.color
-    node.font_size = text_manager.size
+    text = layer.style.text
+    node.rotation = text.rotation
+    node.color = text.color
+    node.font_size = text.size
 
 
 def _has_visible_text(layer: Union[Points, Shapes]) -> bool:
-    text = layer.text
+    text = layer.style.text
     if not text.visible:
         return False
-    if len(text.values) == 0:
+    if (
+        isinstance(text.string, ConstantStringEncoding)
+        and text.string.constant == ''
+    ):
         return False
-    if text._mode == TextMode.NONE:
+    if len(text.string._values) == 0:
         return False
     if len(layer._indices_view) == 0:
         return False

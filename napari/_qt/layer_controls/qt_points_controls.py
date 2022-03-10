@@ -87,7 +87,9 @@ class QtPointsControls(QtLayerControls):
             self._on_current_face_color_change
         )
         self.layer.events.editable.connect(self._on_editable_change)
-        self.layer.text.events.visible.connect(self._on_text_visibility_change)
+        self.layer.style.text.events.visible.connect(
+            self._on_text_visibility_change
+        )
 
         sld = QSlider(Qt.Horizontal)
         sld.setFocusPolicy(Qt.NoFocus)
@@ -160,7 +162,7 @@ class QtPointsControls(QtLayerControls):
 
         text_disp_cb = QCheckBox()
         text_disp_cb.setToolTip(trans._('toggle text visibility'))
-        text_disp_cb.setChecked(self.layer.text.visible)
+        text_disp_cb.setChecked(self.layer.style.text.visible)
         text_disp_cb.stateChanged.connect(self.change_text_visibility)
         self.textDispCheckBox = text_disp_cb
 
@@ -269,12 +271,12 @@ class QtPointsControls(QtLayerControls):
         state : QCheckBox
             Checkbox indicating if text is visible.
         """
-        self.layer.text.visible = state == Qt.Checked
+        self.layer.style.text.visible = state == Qt.Checked
 
     def _on_text_visibility_change(self):
         """Receive layer model text visibiltiy change change event and update checkbox."""
-        with self.layer.text.events.visible.blocker():
-            self.textDispCheckBox.setChecked(self.layer.text.visible)
+        with self.layer.style.text.events.visible.blocker():
+            self.textDispCheckBox.setChecked(self.layer.style.text.visible)
 
     def _on_out_of_slice_display_change(self):
         """Receive layer model out_of_slice_display change event and update checkbox."""
@@ -326,5 +328,5 @@ class QtPointsControls(QtLayerControls):
 
     def close(self):
         """Disconnect events when widget is closing."""
-        disconnect_events(self.layer.text.events, self)
+        disconnect_events(self.layer.style.text.events, self)
         super().close()

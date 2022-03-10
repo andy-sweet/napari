@@ -21,11 +21,13 @@ features = {
 # define the color cycle for the face_color annotation
 face_color_cycle = ['blue', 'green']
 
-text = {
-    'text': 'Confidence is {confidence:.2f}',
-    'size': 20,
-    'color': 'green',
-    'translation': np.array([-30, 0]),
+style = {
+    'text': {
+        'string': 'Confidence is {confidence:.2f}',
+        'size': 20,
+        'color': 'green',
+        'translation': np.array([-30, 0]),
+    },
 }
 
 # create a points layer where the face_color is set by the good_point feature
@@ -34,7 +36,7 @@ text = {
 points_layer = viewer.add_points(
     points,
     features=features,
-    text=text,
+    style=style,
     size=20,
     edge_width=7,
     edge_width_is_relative=False,

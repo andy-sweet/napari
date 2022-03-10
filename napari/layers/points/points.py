@@ -7,6 +7,9 @@ import numpy as np
 import pandas as pd
 from scipy.stats import gmean
 
+from napari.layers.utils.text import Text
+from napari.utils.events import EventedModel
+
 from ...utils.colormaps import Colormap, ValidColormapArg
 from ...utils.colormaps.standardize_color import (
     get_color_namelist,
@@ -25,7 +28,6 @@ from ..utils.color_manager import ColorManager
 from ..utils.color_transformations import ColorType
 from ..utils.interactivity_utils import displayed_plane_from_nd_line_segment
 from ..utils.layer_utils import _features_to_properties, _FeatureTable
-from ..utils.text_manager import TextManager
 from ._points_constants import SYMBOL_ALIAS, Mode, Shading, Symbol
 from ._points_mouse_bindings import add, highlight, select
 from ._points_utils import (
@@ -273,6 +275,26 @@ class Points(Layer):
         The amount of antialiasing pixels for both the marker and marker edge.
     """
 
+    class Style(EventedModel):
+        text: Text = Text()
+
+        def _update(self, features):
+            self.text._update(features)
+
+        def _delete(self, indices):
+            self.text._delete(indices)
+
+        def _refresh(self, features):
+            self.text._refresh(features)
+
+        def _copy(self, indices) -> dict:
+            return {
+                'text': self.text._copy(indices),
+            }
+
+        def _paste(self, values: dict) -> None:
+            self.text._paste(values['text'])
+
     # TODO  write better documentation for edge_color and face_color
 
     # The max number of points that will ever be used to render the thumbnail
@@ -317,9 +339,14 @@ class Points(Layer):
         shading='none',
         experimental_canvas_size_limits=(0, 10000),
         shown=True,
+        style=None,
     ):
         if ndim is None and scale is not None:
             ndim = len(scale)
+
+        if style is None:
+            style = {}
+        self._style = Points.Style(**style)
 
         data, ndim = fix_data_points(data, ndim)
 
@@ -358,6 +385,7 @@ class Points(Layer):
             shading=Event,
             _antialias=Event,
             experimental_canvas_size_limits=Event,
+            style=Event,
         )
 
         self._colors = get_color_namelist()
@@ -371,12 +399,7 @@ class Points(Layer):
             property_choices=property_choices,
             num_data=len(self.data),
         )
-
-        self._text = TextManager._from_layer(
-            text=text,
-            n_text=len(self.data),
-            properties=self.properties,
-        )
+        self.style._refresh(self.features)
 
         self._edge_width_is_relative = False
         self._shown = np.empty(0).astype(bool)
@@ -457,6 +480,14 @@ class Points(Layer):
         self._update_dims()
 
     @property
+    def style(self) -> Style:
+        return self._style
+
+    @style.setter
+    def style(self, style) -> None:
+        self._style.update(style)
+
+    @property
     def data(self) -> np.ndarray:
         """(N, D) array: coordinates for N points in D dimensions."""
         return self._data
@@ -472,6 +503,7 @@ class Points(Layer):
             with self._edge.events.blocker_all():
                 with self._face.events.blocker_all():
                     self._feature_table.resize(len(data))
+                    self.style._update(self.features)
                     if len(data) < cur_npoints:
                         # If there are now fewer points, remove the size and colors of the
                         # extra ones
@@ -527,8 +559,6 @@ class Points(Layer):
                             np.arange(cur_npoints, len(data))
                         )
 
-                        self.text.add(self.current_properties, adding)
-
         self._update_dims()
         self.events.data(value=self.data)
         self._set_editable()
@@ -571,8 +601,7 @@ class Points(Layer):
         self._update_color_manager(
             self._edge, self._feature_table, "edge_color"
         )
-        if self.text.values is not None:
-            self.refresh_text()
+        self.style._refresh(self.features)
         self.events.properties()
 
     @property
@@ -642,25 +671,13 @@ class Points(Layer):
         self._face._update_current_properties(current_properties)
         self.events.current_properties()
 
-    @property
-    def text(self) -> TextManager:
-        """TextManager: the TextManager object containing containing the text properties"""
-        return self._text
-
-    @text.setter
-    def text(self, text):
-        self._text._update_from_layer(
-            text=text,
-            n_text=len(self.data),
-            properties=self.properties,
-        )
-
     def refresh_text(self):
         """Refresh the text values.
 
         This is generally used if the properties were updated without changing the data
         """
-        self.text.refresh_text(self.properties)
+        self.style.text._refresh(self.features)
+        self.style.text.events(Event(type='foo'))
 
     def _get_ndim(self) -> int:
         """Determine number of dimensions of the layer."""
@@ -1156,7 +1173,6 @@ class Points(Layer):
                 'edge_contrast_limits': self.edge_contrast_limits,
                 'properties': self.properties,
                 'property_choices': self.property_choices,
-                'text': self.text.dict(),
                 'out_of_slice_display': self.out_of_slice_display,
                 'n_dimensional': self.out_of_slice_display,
                 'size': self.size,
@@ -1166,6 +1182,7 @@ class Points(Layer):
                 'shading': self.shading,
                 'experimental_canvas_size_limits': self.experimental_canvas_size_limits,
                 'shown': self.shown,
+                'style': self.style,
             }
         )
         return state
@@ -1345,7 +1362,8 @@ class Points(Layer):
         text : (N x 1) np.ndarray
             Array of text strings for the N text elements in view
         """
-        return self.text.view_text(self._indices_view)
+        self.style.text._update(self.features)
+        return self.style.text.string._values[self._indices_view]
 
     @property
     def _view_text_coords(self) -> Tuple[np.ndarray, str, str]:
@@ -1360,7 +1378,9 @@ class Points(Layer):
         anchor_y : str
             The vispy text anchor for the y axis
         """
-        return self.text.compute_text_coords(self._view_data, self._ndisplay)
+        return self.style.text._compute_text_coords(
+            self._view_data, self._ndisplay
+        )
 
     @property
     def _view_size(self) -> np.ndarray:
@@ -1797,8 +1817,7 @@ class Points(Layer):
             with self._face.events.blocker_all():
                 self._face._remove(indices_to_remove=index)
             self._feature_table.remove(index)
-            with self.text.events.blocker_all():
-                self.text.remove(index)
+            self.style._delete(index)
             if self._value in self.selected_data:
                 self._value = None
             else:
@@ -1876,6 +1895,7 @@ class Points(Layer):
             )
 
             self._feature_table.append(self._clipboard['features'])
+            self.style._paste(self._clipboard['style'])
 
             self._selected_view = list(
                 range(npoints, npoints + len(self._clipboard['data']))
@@ -1883,11 +1903,6 @@ class Points(Layer):
             self._selected_data = set(
                 range(totpoints, totpoints + len(self._clipboard['data']))
             )
-
-            if len(self._clipboard['text']) > 0:
-                self.text.values = np.concatenate(
-                    (self.text.values, self._clipboard['text']), axis=0
-                )
 
             self.refresh()
 
@@ -1904,14 +1919,8 @@ class Points(Layer):
                 'edge_width': deepcopy(self.edge_width[index]),
                 'features': deepcopy(self.features.iloc[index]),
                 'indices': self._slice_indices,
+                'style': self.style._copy(index),
             }
-
-            if len(self.text.values) == 0:
-                self._clipboard['text'] = np.empty(0)
-
-            else:
-                self._clipboard['text'] = deepcopy(self.text.values[index])
-
         else:
             self._clipboard = {}
 
