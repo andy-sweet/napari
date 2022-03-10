@@ -78,32 +78,6 @@ class Text(EventedModel):
         """Pastes encoded values to the end of the existing values."""
         self.string._append(values['string'])
 
-    def _update_safely(self, **kwargs) -> None:
-        """Updates this in-place from a layer.
-
-        This will effectively overwrite all existing state, but in-place
-        so that there is no need for any external components to reconnect
-        to any useful events. For this reason, only fields that change in
-        value will emit their corresponding events.
-
-        Parameters
-        ----------
-        See :meth:`TextManager._from_layer`.
-        """
-        # Create a new instance from the input to populate all fields.
-        new_text = Text(**kwargs)
-
-        # Update a copy of this so that any associated errors are raised
-        # before actually making the update. This does not need to be a
-        # deep copy because update will only try to reassign fields and
-        # should not mutate any existing fields in-place.
-        current_text = self.copy()
-        current_text.update(new_text)
-
-        # If we got here, then there were no errors, so update for real.
-        # Connected callbacks may raise errors, but those are bugs.
-        self.update(new_text)
-
     def _compute_text_coords(
         self, view_data: np.ndarray, ndisplay: int
     ) -> Tuple[np.ndarray, str, str]:
