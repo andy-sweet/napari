@@ -68,6 +68,8 @@ class Text(EventedModel):
     def _refresh(self, features) -> None:
         self.string._clear()
         self._update(features)
+        # TODO: this is needed to trigger a refresh of vispy when properties/features changes.
+        self.events.string()
 
     def _delete(self, indices) -> None:
         self.string._delete(indices)

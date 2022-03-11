@@ -695,6 +695,7 @@ class Points(Layer):
             text=text,
             features=self.features,
         )
+        # TODO: is this refresh really needed?
         self.style.text._refresh(self.features)
 
     def refresh_text(self):
