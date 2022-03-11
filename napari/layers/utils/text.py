@@ -1,14 +1,19 @@
 import warnings
-from typing import List, Tuple
+from copy import deepcopy
+from typing import Dict, List, Tuple
 
 import numpy as np
 from pydantic import PositiveInt, validator
 
 from napari.layers.utils.string_encoding import (
     ConstantStringEncoding,
+    DirectStringEncoding,
+    FormatStringEncoding,
+    ManualStringEncoding,
     StringEncoding,
     validate_string_encoding,
 )
+from napari.layers.utils.text_manager import TextManager
 
 from ...utils.colormaps.standardize_color import transform_color
 from ...utils.events import EventedModel
@@ -20,7 +25,7 @@ from ._text_utils import get_text_anchors
 
 
 class Text(EventedModel):
-    """Manages properties related to text displayed in conjunction with the layer.
+    """Properties related to text displayed in conjunction with the layer.
 
     Attributes
     ----------
@@ -130,3 +135,40 @@ class Text(EventedModel):
             )
 
         return blending_mode
+
+    def _update_from_layer(self, text, features) -> None:
+        if isinstance(text, TextManager):
+            kwargs = text.dict()
+        elif isinstance(text, dict):
+            kwargs = deepcopy(text)
+        else:
+            kwargs = {'text': text}
+        if kwargs['text'] in features:
+            kwargs['text'] = DirectStringEncoding(feature=kwargs['text'])
+        self.string = kwargs.pop('text')
+        self.update(kwargs)
+
+    def _to_manager(
+        self, *, n_text: int, properties: Dict[str, np.ndarray]
+    ) -> TextManager:
+        text = None
+        if isinstance(self.string, ConstantStringEncoding):
+            text = str(self.string.constant)
+        elif isinstance(self.string, ManualStringEncoding):
+            text = self.string.array
+        elif isinstance(self.string, DirectStringEncoding):
+            text = self.string.feature
+        elif isinstance(self.string, FormatStringEncoding):
+            text = self.string.format
+        return TextManager(
+            text=text,
+            n_text=n_text,
+            properties=properties,
+            visible=self.visible,
+            size=self.size,
+            color=self.color,
+            blending=self.blending,
+            anchor=self.anchor,
+            translation=self.translation,
+            rotation=self.rotation,
+        )

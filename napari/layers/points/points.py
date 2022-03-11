@@ -8,6 +8,7 @@ import pandas as pd
 from scipy.stats import gmean
 
 from napari.layers.utils.text import Text
+from napari.layers.utils.text_manager import TextManager
 from napari.utils.events import EventedModel
 
 from ...utils.colormaps import Colormap, ValidColormapArg
@@ -399,6 +400,14 @@ class Points(Layer):
             property_choices=property_choices,
             num_data=len(self.data),
         )
+
+        if text is not None:
+            # TODO: deprecate use of text parameter
+            self.style.text._update_from_layer(
+                text=text,
+                features=self.features,
+            )
+
         self.style._refresh(self.features)
 
         self._edge_width_is_relative = False
@@ -670,6 +679,23 @@ class Points(Layer):
         self._edge._update_current_properties(current_properties)
         self._face._update_current_properties(current_properties)
         self.events.current_properties()
+
+    @property
+    def text(self) -> TextManager:
+        """TextManager: the TextManager object containing containing the text properties"""
+        return self.style.text._to_manager(
+            n_text=len(self.data),
+            properties=self._feature_table.properties(),
+        )
+
+    @text.setter
+    def text(self, text):
+        # TODO: add deprecation warning
+        self.style.text._update_from_layer(
+            text=text,
+            features=self.features,
+        )
+        self.style.text._refresh(self.features)
 
     def refresh_text(self):
         """Refresh the text values.
@@ -1173,6 +1199,7 @@ class Points(Layer):
                 'edge_contrast_limits': self.edge_contrast_limits,
                 'properties': self.properties,
                 'property_choices': self.property_choices,
+                'text': self.text.dict(),
                 'out_of_slice_display': self.out_of_slice_display,
                 'n_dimensional': self.out_of_slice_display,
                 'size': self.size,
@@ -1182,7 +1209,6 @@ class Points(Layer):
                 'shading': self.shading,
                 'experimental_canvas_size_limits': self.experimental_canvas_size_limits,
                 'shown': self.shown,
-                'style': self.style,
             }
         )
         return state
