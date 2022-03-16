@@ -4,6 +4,7 @@ from itertools import cycle, islice
 import numpy as np
 import pandas as pd
 import pytest
+from pydantic import ValidationError
 from vispy.color import get_colormap
 
 from napari._tests.utils import (
@@ -826,7 +827,7 @@ def test_set_text_with_kwarg_dict(properties):
     for property, value in text_kwargs.items():
         if property == 'text':
             continue
-        layer_value = getattr(layer._text, property)
+        layer_value = getattr(layer.text, property)
         np.testing.assert_equal(layer_value, value)
 
 
@@ -837,7 +838,7 @@ def test_text_error(properties):
     np.random.seed(0)
     data = 20 * np.random.random(shape)
     # try adding text as the wrong type
-    with pytest.raises(TypeError):
+    with pytest.raises(ValidationError):
         Points(data, properties=copy(properties), text=123)
 
 
@@ -2243,7 +2244,8 @@ def test_set_properties_with_missing_text_property_text_becomes_constant():
     np.testing.assert_equal(points.properties, properties)
     np.testing.assert_array_equal(points.text.values, ['A', 'B', 'C'])
 
-    points.properties = {'not_class': np.array(['D', 'E', 'F'])}
+    with pytest.warns(RuntimeWarning):
+        points.properties = {'not_class': np.array(['D', 'E', 'F'])}
 
     np.testing.assert_array_equal(
         points.text.values, ['class', 'class', 'class']

@@ -53,6 +53,9 @@ def test_change_text_color_updates_node_color():
     text_node = vispy_layer._get_text_node()
     np.testing.assert_array_equal(text_node.color.rgb, [[1, 0, 0]])
 
+    # TODO: layer.text returns a new TextManager instance where modifications
+    # will not affect napari. If we want those side-effects to have an effect
+    # in general then TextManager needs to have a reference to Text.
     layer.text.color = [0, 0, 1]
 
     np.testing.assert_array_equal(text_node.color.rgb, [[0, 0, 1]])

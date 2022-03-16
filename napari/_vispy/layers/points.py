@@ -29,7 +29,7 @@ class VispyPointsLayer(VispyBaseLayer):
         self.layer._face.events.colors.connect(self._on_data_change)
         self.layer._face.events.color_properties.connect(self._on_data_change)
         self.layer.events.highlight.connect(self._on_highlight_change)
-        self.layer.text.events.connect(self._on_text_change)
+        self.layer.style.text.events.connect(self._on_text_change)
         self.layer.events.shading.connect(self._on_shading_change)
         self.layer.events._antialias.connect(self._on_antialias_change)
         self.layer.events.experimental_canvas_size_limits.connect(
@@ -151,7 +151,7 @@ class VispyPointsLayer(VispyBaseLayer):
         self.node.set_gl_state(**points_blending_kwargs)
 
         text_node = self._get_text_node()
-        text_blending_kwargs = BLENDING_MODES[self.layer.text.blending]
+        text_blending_kwargs = BLENDING_MODES[self.layer.style.text.blending]
         text_node.set_gl_state(**text_blending_kwargs)
 
         # selection box is always without depth
@@ -186,5 +186,5 @@ class VispyPointsLayer(VispyBaseLayer):
 
     def close(self):
         """Vispy visual is closing."""
-        disconnect_events(self.layer.text.events, self)
+        disconnect_events(self.layer.style.text.events, self)
         super().close()

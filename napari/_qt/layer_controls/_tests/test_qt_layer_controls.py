@@ -58,7 +58,11 @@ def test_text_set_visible_updates_checkbox(qtbot, layer_type_with_data):
     qtbot.addWidget(ctrl)
     assert ctrl.textDispCheckBox.isChecked()
 
-    layer.text.visible = False
+    # TODO: make text.visible trigger new style.text.visible.
+    if layer_type_with_data.type is Points:
+        layer.style.text.visible = False
+    else:
+        layer.text.visible = False
 
     assert not ctrl.textDispCheckBox.isChecked()
 
@@ -76,6 +80,9 @@ def test_set_text_then_set_visible_updates_checkbox(
     }
     assert not ctrl.textDispCheckBox.isChecked()
 
-    layer.text.visible = True
+    if layer_type_with_data.type is Points:
+        layer.style.text.visible = True
+    else:
+        layer.text.visible = True
 
     assert ctrl.textDispCheckBox.isChecked()
