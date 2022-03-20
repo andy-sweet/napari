@@ -755,7 +755,7 @@ class Shapes(Layer):
         if self.text.values is not None:
             self.refresh_text()
         self.events.properties()
-        self.events.features()
+        self.events.features(changed=self.features)
 
     @property
     def feature_defaults(self):
@@ -872,9 +872,9 @@ class Shapes(Layer):
         if update_indices is not None:
             self.refresh_colors()
             self.events.properties()
-            self.events.features()
+            self.events.features(changed=self.features.iloc[update_indices])
         self.events.current_properties()
-        self.events.feature_defaults()
+        self.events.feature_defaults(changed=self.feature_defaults)
 
     @property
     def shape_type(self):
