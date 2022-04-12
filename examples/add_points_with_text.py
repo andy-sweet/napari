@@ -21,8 +21,10 @@ features = {
     'good_point': np.array([True, False, False]),
 }
 
-# define the color cycle for the face_color annotation
-face_color_cycle = ['blue', 'green']
+style = {
+    'face_color': {'feature': 'good_point', 'colormap': ['blue', 'green']},
+    'edge_color': {'feature': 'confidence', 'colormap': 'gray'},
+}
 
 text = {
     'string': 'Confidence is {confidence:.2f}',
@@ -41,14 +43,8 @@ points_layer = viewer.add_points(
     size=20,
     edge_width=7,
     edge_width_is_relative=False,
-    edge_color='confidence',
-    edge_colormap='gray',
-    face_color='good_point',
-    face_color_cycle=face_color_cycle,
+    style=style,
 )
-
-# set the edge_color mode to colormap
-points_layer.edge_color_mode = 'colormap'
 
 if __name__ == '__main__':
     napari.run()

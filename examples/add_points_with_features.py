@@ -23,8 +23,10 @@ features = {
     'good_point': np.array([True, False, False])
 }
 
-# define the color cycle for the face_color annotation
-face_color_cycle = ['blue', 'green']
+style = {
+    'face_color': {'feature': 'good_point', 'colormap': ['blue', 'green']},
+    'edge_color': {'feature': 'confidence', 'colormap': 'gray'},
+}
 
 # create a points layer where the face_color is set by the good_point feature
 # and the edge_color is set via a color map (grayscale) on the confidence
@@ -35,15 +37,8 @@ points_layer = viewer.add_points(
     size=20,
     edge_width=7,
     edge_width_is_relative=False,
-    edge_color='confidence',
-    edge_colormap='gray',
-    face_color='good_point',
-    face_color_cycle=face_color_cycle
+    style=style,
 )
-
-# set the edge_color mode to colormap
-points_layer.edge_color_mode = 'colormap'
-
 
 # bind a function to toggle the good_point annotation of the selected points
 @viewer.bind_key('t')

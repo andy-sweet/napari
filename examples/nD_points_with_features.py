@@ -34,23 +34,22 @@ features = {
     'edge_feature': edge_feature,
 }
 
+style = {
+    # there are 4 colors for 5 categories, so 'c' will be recycled
+    'edge_color': {'feature': 'edge_feature', 'colormap': ['c', 'm', 'y', 'k']},
+    # face_color is a boolean
+    'face_color': {'feature': 'face_feature', 'colormap': ['white', 'black']},
+}
+
 points_layer = viewer.add_points(
     points,
     features=features,
     size=3,
     edge_width=5,
     edge_width_is_relative=False,
-    edge_color='edge_feature',
-    face_color='face_feature',
+    style=style,
     out_of_slice_display=False,
 )
-
-# change the face color cycle
-points_layer.face_color_cycle = ['white', 'black']
-
-# change the edge_color cycle.
-# there are 4 colors for 5 categories, so 'c' will be recycled
-points_layer.edge_color_cycle = ['c', 'm', 'y', 'k']
 
 if __name__ == '__main__':
     napari.run()
