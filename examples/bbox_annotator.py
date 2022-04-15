@@ -56,7 +56,7 @@ def create_label_menu(shapes_layer, label_feature, labels):
     def set_selected_features_to_default():
         """This is a callback that updates the feature values of the currently
         selected shapes. This is a side-effect of the deprecated current_properties
-        setter, but does not occur when modifying feature_defaults."""
+        setter, but there is no feature_defaults setter."""
         indices = list(shapes_layer.selected_data)
         default_value = shapes_layer.feature_defaults[label_feature][0]
         shapes_layer.features[label_feature][indices] = default_value

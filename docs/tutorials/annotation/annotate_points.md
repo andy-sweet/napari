@@ -4,7 +4,7 @@
 
 In this tutorial, we will use napari (requires version 0.3.2 or greater) to make a simple GUI application for annotating points in videos.
 This GUI could be useful for making annotations required to train algorithms for markless tracking of animals (e.g., [DeepLabCut](http://www.mousemotorlab.org/deeplabcut)).
-In this tutorial, we will cover creating and interacting with a Points layer with properties (i.e., labels for the points), connecting custom UI elements to events, and creating custom keybindings.
+In this tutorial, we will cover creating and interacting with a Points layer with features (i.e., labels for the points), connecting custom UI elements to events, and creating custom keybindings.
 
 At the end of this tutorial, we will have created a GUI for annotating points in videos that we can simply call by:
 
@@ -64,18 +64,27 @@ def create_label_menu(points_layer, labels):
 
     def update_label_menu(event):
         """Update the label menu when the point selection changes"""
-        new_label = str(points_layer.current_properties['label'][0])
+        new_label = str(points_layer.feature_defaults['label'][0])
         if new_label != label_menu.value:
             label_menu.value = new_label
 
-    points_layer.events.current_properties.connect(update_label_menu)
+    points_layer.events.feature_defaults.connect(update_label_menu)
 
-    def label_changed(event):
+    def set_selected_features_to_default():
+        """This is a callback that updates the feature values of the currently
+        selected points. This is a side-effect of the deprecated current_properties
+        setter, but there is no feature_defaults setter."""
+        indices = list(points_layer.selected_data)
+        default_value = points_layer.feature_defaults['label'][0]
+        shapes_layer.features['label'][indices] = default_value
+        shapes_layer.events.features()
+
+    points_layer.events.feature_defaults.connect(set_selected_features_to_default)
+
+    def label_changed(value: str):
         """Update the Points layer when the label menu selection changes"""
-        selected_label = event.value
-        current_properties = points_layer.current_properties
-        current_properties['label'] = np.asarray([selected_label])
-        points_layer.current_properties = current_properties
+        shapes_layer.feature_defaults[label_feature] = value
+        shapes_layer.events.feature_defaults()
 
     label_menu.changed.connect(label_changed)
 
@@ -99,7 +108,7 @@ def point_annotator(
 
     viewer = napari.view_image(stack)
     points_layer = viewer.add_points(
-        properties={'label': labels},
+        features={'label': labels},
         edge_color='label',
         edge_color_cycle=COLOR_CYCLE,
         symbol='o',
@@ -114,16 +123,27 @@ def point_annotator(
     label_widget = create_label_menu(points_layer, labels)
     viewer.window.add_dock_widget(label_widget)
 
+    # TODO: define this once with parameters and use many times.
+    def set_selected_features_to_default():
+        """This is a callback that updates the feature values of the currently
+        selected points. This is a side-effect of the deprecated current_properties
+        setter, but there is no feature_defaults setter."""
+        indices = list(points_layer.selected_data)
+        default_value = points_layer.feature_defaults['label'][0]
+        shapes_layer.features['label'][indices] = default_value
+        shapes_layer.events.features()
+
+    points_layer.events.feature_defaults.connect(set_selected_features_to_default)
+
     @viewer.bind_key('.')
     def next_label(event=None):
         """Keybinding to advance to the next label with wraparound"""
-        current_properties = points_layer.current_properties
-        current_label = current_properties['label'][0]
-        ind = list(labels).index(current_label)
+        default_label = points_layer.feature_defaults['label'][0]
+        ind = list(labels).index(default_label)
         new_ind = (ind + 1) % len(labels)
         new_label = labels[new_ind]
-        current_properties['label'] = np.array([new_label])
-        points_layer.current_properties = current_properties
+        points_layer.feature_defaults['label'] = new_label
+        points_layer.events.feature_defaults()
 
     def next_on_click(layer, event):
         """Mouse click binding to advance the label when a point is added"""
@@ -140,14 +160,13 @@ def point_annotator(
     @viewer.bind_key(',')
     def prev_label(event):
         """Keybinding to decrement to the previous label with wraparound"""
-        current_properties = points_layer.current_properties
-        current_label = current_properties['label'][0]
-        ind = list(labels).index(current_label)
+        default_label = points_layer.feature_defaults['label'][0]
+        ind = list(labels).index(default_label)
         n_labels = len(labels)
         new_ind = ((ind - 1) + n_labels) % n_labels
         new_label = labels[new_ind]
-        current_properties['label'] = np.array([new_label])
-        points_layer.current_properties = current_properties
+        points_layer.feature_defaults['label'] = new_label
+        points_layer.events.feature_defaults()
 ```
 
 ## `point_annotator()`
@@ -194,21 +213,20 @@ napari.run()
 
 We will annotate the features of interest using points in a napari Points layer.
 Each feature will be given a different label so that we can track them across frames.
-To achieve this, we will store the label in the `Points.properties` property in the 'label' key.
+To achieve this, we will store the label in the `Points.features` property in the 'label' key.
 We will instantiate the `Points` layer without any points.
-However, we will initialize `Points.properties` with the property values we will be using to annotate the images.
-To do so, we will define a properties dictionary with a key named `label` and values `labels`.
-The key, 'label', is the name of the property we are storing which feature of interest each point corresponds with.
+However, we will initialize `Points.features` with the feature values we will be using to annotate the images.
+To do so, we will define a dictionary with a key named `label` and values `labels`.
+The key, 'label', is the name of the feature we are storing which feature of interest each point corresponds with.
 The values, 'labels', is the list of the names of the features we will be annotating (defined above in the "point_annotator()" section).
 
 We add the `Points` layer to the viewer using the `viewer.add_points()` method.
-As discussed above, we will be storing which feature of interest each point corresponds to via the `label` property we defined in the `properties` dictionary.
-To visualize the feature each point represents, we set the edge color as a color cycle mapped to the `label` property (`edge_color='label'`).
+As discussed above, we will be storing which feature of interest each point corresponds to via the `label` feature we defined in the `features` table.
+To visualize the feature each point represents, we set the edge color as a color cycle mapped to the `label` feature (`edge_color='label'`).
 
 ```python
-properties = {'label': labels}
 points_layer = viewer.add_points(
-    properties=properties,
+    features={'label': labels},
     edge_color='label',
     edge_color_cycle=COLOR_CYCLE,
     symbol='o',
@@ -286,18 +304,18 @@ label_widget = Container(widgets=[label_menu])
 We then need to connect the dropdown menu (`label_menu`) to the points layer to ensure the menu selection is always synchronized to the `Points` layer model.
 
 First, we define a function to update the label dropdown menu GUI when the value of the selected point or next point to be added is changed.
-On the points layer, the property values of the next point to be added are stored in the `current_properties` property.
-The points layer has an event that gets emitted when the `current_properties` property is changed (`points_layer.events.current_properties`).
-We connect the function we created to the event so that `update_label_menu()` is called whenever `Points.current_property` is changed.
+On the points layer, the feature values of the next point to be added are stored in the `feature_defaults` property.
+The points layer has an event that can be used to indicate that `feature_defaults` changed.
+We connect the function we created to the event so that `update_label_menu()` is called whenever `Points.feature_defaults` is changed.
 
 ```python
 def update_label_menu(event):
     """Update the label menu when the point selection changes"""
-    new_label = str(points_layer.current_properties['label'][0])
+    new_label = str(points_layer.feature_defaults['label'][0])
     if new_label != label_menu.value:
         label_menu.value = new_label
 
-points_layer.events.current_properties.connect(update_label_menu)
+points_layer.events.feature_defaults.connect(update_label_menu)
 ```
 
 Next, we define a function to update the points layer if the selection in the labels dropdown menu is changed.
