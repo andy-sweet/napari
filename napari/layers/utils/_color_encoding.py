@@ -4,15 +4,11 @@ import numpy as np
 from pydantic import Field, parse_obj_as, validator
 from typing_extensions import Protocol, runtime_checkable
 
-from napari.layers.utils.color_manager import ColorManager
-from napari.layers.utils.color_manager_utils import guess_continuous
-
 from ...utils import Colormap
 from ...utils.colormaps import ValidColormapArg, ensure_colormap
 from ...utils.colormaps.categorical_colormap import CategoricalColormap
 from ...utils.colormaps.standardize_color import transform_color
 from ...utils.translations import trans
-from ._color_manager_constants import ColorMode
 from .color_transformations import ColorType
 from .style_encoding import (
     StyleEncoding,
@@ -260,39 +256,3 @@ def _calculate_contrast_limits(
         if min_value < max_value:
             contrast_limits = (min_value, max_value)
     return contrast_limits
-
-
-def _from_color_manager(manager: ColorManager) -> ColorEncoding:
-    mode = manager.color_mode
-    if mode == ColorMode.CYCLE:
-        return NominalColorEncoding(
-            feature=manager.color_properties.name,
-            colormap=manager.categorical_colormap,
-        )
-    if mode == ColorMode.COLORMAP:
-        return QuantitativeColorEncoding(
-            feature=manager.color_properties.name,
-            colormap=manager.continuous_colormap,
-            contrast_limits=manager.contrast_limits,
-        )
-    return ManualColorEncoding(
-        array=manager.colors, default=manager.current_color
-    )
-
-
-def _from_color(
-    properties: dict[str, np.ndarray], color: Union[str, ColorType]
-) -> ColorEncoding:
-    if isinstance(color, str):
-        if guess_continuous(color, properties):
-            return QuantitativeColorEncoding(feature=color, colormap='viridis')
-        return NominalColorEncoding(feature=color, colormap=['white'])
-    return ManualColorEncoding(array=color)
-
-
-def _to_manager_mode(encoding: ColorEncoding) -> ColorMode:
-    if isinstance(encoding, NominalColorEncoding):
-        return ColorMode.CYCLE
-    if isinstance(encoding, QuantitativeColorEncoding):
-        return ColorMode.COLORMAP
-    return ColorMode.DIRECT

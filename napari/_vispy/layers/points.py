@@ -22,7 +22,6 @@ class VispyPointsLayer(VispyBaseLayer):
         self.layer.events.symbol.connect(self._on_symbol_change)
         self.layer.events.edge_width.connect(self._on_data_change)
         self.layer.events.edge_width_is_relative.connect(self._on_data_change)
-        self.layer.events.edge_color.connect(self._on_data_change)
         self.layer.style.events.connect(self._on_data_change)
         self.layer.events.highlight.connect(self._on_highlight_change)
         self.layer.text.events.connect(self._on_text_change)
