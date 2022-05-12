@@ -761,13 +761,11 @@ class Points(Layer):
             and self._mode != Mode.ADD
         ):
             update_indices = list(self.selected_data)
-        else:
-            update_indices = []
-        if isinstance(self.style.edge_color, ManualColorEncoding):
-            self.style.edge_color.default = edge_color
-            self.style.edge_color.array[
-                update_indices
-            ] = self.style.edge_color.default
+            if isinstance(self.style.edge_color, ManualColorEncoding):
+                self.style.edge_color.default = edge_color
+                self.style.edge_color.array[
+                    update_indices
+                ] = self.style.edge_color.default
         self.events.current_edge_color()
 
     @property
@@ -785,13 +783,11 @@ class Points(Layer):
             and self._mode != Mode.ADD
         ):
             update_indices = list(self.selected_data)
-        else:
-            update_indices = []
-        if isinstance(self.style.face_color, ManualColorEncoding):
-            self.style.face_color.default = face_color
-            self.style.face_color.array[
-                update_indices
-            ] = self.style.face_color.default
+            if isinstance(self.style.face_color, ManualColorEncoding):
+                self.style.face_color.default = face_color
+                self.style.face_color.array[
+                    update_indices
+                ] = self.style.face_color.default
         self.events.current_face_color()
 
     def refresh_colors(self, update_color_mapping: bool = False):
@@ -866,23 +862,6 @@ class Points(Layer):
             return
         index = list(self._selected_data)
 
-        # Only update manual color encodings when the selection changes,
-        # other colors are constant or are derived from features.
-        edge_colors = _get_style_values(self.style.edge_color, index)
-        edge_colors = np.unique(np.atleast_2d(edge_colors), axis=0)
-        print(f'edge_colors: {edge_colors}')
-        if len(edge_colors) == 1:
-            if isinstance(self.style.edge_color, ManualColorEncoding):
-                self.style.edge_color.default = edge_colors[0]
-            self.events.current_edge_color()
-
-        face_colors = _get_style_values(self.style.face_color, index)
-        face_colors = np.unique(np.atleast_2d(face_colors), axis=0)
-        if len(face_colors) == 1:
-            if isinstance(self.style.face_color, ManualColorEncoding):
-                self.style.face_color.default = face_colors[0]
-            self.events.current_face_color()
-
         size = list({self.size[i, self._dims_displayed].mean() for i in index})
         if len(size) == 1:
             size = size[0]
@@ -906,6 +885,23 @@ class Points(Layer):
         if np.all(n_unique_properties == 1):
             with self.block_update_properties():
                 self.current_properties = properties
+
+        # Only update manual color encodings when the selection changes,
+        # other colors are constant or are derived from features.
+        edge_colors = _get_style_values(self.style.edge_color, index)
+        edge_colors = np.unique(np.atleast_2d(edge_colors), axis=0)
+        if len(edge_colors) == 1:
+            if isinstance(self.style.edge_color, ManualColorEncoding):
+                self.style.edge_color.default = edge_colors[0]
+            self.events.current_edge_color()
+
+        face_colors = _get_style_values(self.style.face_color, index)
+        face_colors = np.unique(np.atleast_2d(face_colors), axis=0)
+        if len(face_colors) == 1:
+            if isinstance(self.style.face_color, ManualColorEncoding):
+                self.style.face_color.default = face_colors[0]
+            self.events.current_face_color()
+
         self._set_highlight()
 
     def interaction_box(self, index) -> Optional[np.ndarray]:

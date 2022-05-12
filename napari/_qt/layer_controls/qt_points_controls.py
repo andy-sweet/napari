@@ -301,12 +301,14 @@ class QtPointsControls(QtLayerControls):
             self.layer.current_edge_color = color
 
     def _on_face_color_change(self):
-        pass
-        # self.faceColorEdit.setEnabled(self._has_color_control(self.layer.style.face_color))
+        self.faceColorEdit.setEnabled(
+            self._has_color_control(self.layer.style.face_color)
+        )
 
     def _on_edge_color_change(self):
-        pass
-        # self.edgeColorEdit.setEnabled(self._has_color_control(self.layer.style.edge_color))
+        self.edgeColorEdit.setEnabled(
+            self._has_color_control(self.layer.style.edge_color)
+        )
 
     def _has_color_control(self, encoding) -> bool:
         return isinstance(
