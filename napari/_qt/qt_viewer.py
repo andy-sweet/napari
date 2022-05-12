@@ -11,6 +11,8 @@ from qtpy.QtCore import QCoreApplication, QObject, Qt
 from qtpy.QtGui import QCursor, QGuiApplication
 from qtpy.QtWidgets import QFileDialog, QSplitter, QVBoxLayout, QWidget
 
+from napari.errors.reader_errors import MissingAssociatedReaderError
+
 from ..components._interaction_box_mouse_bindings import (
     InteractionBoxMouseBindings,
 )
@@ -263,10 +265,10 @@ class QtViewer(QSplitter):
 
         main_widget = QWidget()
         main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 22, 10, 2)
+        main_layout.setContentsMargins(0, 2, 0, 2)
         main_layout.addWidget(self._canvas_overlay)
         main_layout.addWidget(self.dims)
-        main_layout.setSpacing(10)
+        main_layout.setSpacing(0)
         main_widget.setLayout(main_layout)
 
         self.setOrientation(Qt.Vertical)
@@ -744,7 +746,7 @@ class QtViewer(QSplitter):
         """
         try:
             self.viewer._open_or_raise_error(filenames, stack=stack)
-        except ReaderPluginError as e:
+        except (ReaderPluginError, MissingAssociatedReaderError) as e:
             handle_gui_reading(filenames, self, stack, e.reader_plugin, e)
         except MultipleReaderError:
             handle_gui_reading(filenames, self, stack)
