@@ -77,15 +77,9 @@ class QtPointsControls(QtLayerControls):
         self.layer.events.current_edge_color.connect(
             self._on_current_edge_color_change
         )
-        # self.layer._edge.events.current_color.connect(
-        #    self._on_current_edge_color_change
-        # )
         self.layer.events.current_face_color.connect(
             self._on_current_face_color_change
         )
-        # self.layer._face.events.current_color.connect(
-        #    self._on_current_face_color_change
-        # )
         self.layer.events.editable.connect(self._on_editable_change)
         self.layer.text.events.visible.connect(self._on_text_visibility_change)
 
@@ -304,11 +298,13 @@ class QtPointsControls(QtLayerControls):
         self.faceColorEdit.setEnabled(
             self._has_color_control(self.layer.style.face_color)
         )
+        self._on_current_face_color_change()
 
     def _on_edge_color_change(self):
         self.edgeColorEdit.setEnabled(
             self._has_color_control(self.layer.style.edge_color)
         )
+        self._on_current_edge_color_change()
 
     def _has_color_control(self, encoding) -> bool:
         return isinstance(
