@@ -1,12 +1,9 @@
 from copy import copy, deepcopy
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from pydantic import validator
 from scipy.stats import gmean
-
-from napari.utils.events.evented_model import EventedModel
 
 from ...utils.colormaps.standardize_color import (
     get_color_namelist,
@@ -21,16 +18,14 @@ from ...utils.transforms import Affine
 from ...utils.translations import trans
 from ..base import Layer, no_op
 from ..utils._color_encoding import (
-    ColorArray,
     ColorEncoding,
     ConstantColorEncoding,
     ManualColorEncoding,
-    validate_color_encoding,
 )
 from ..utils.color_transformations import ColorType
 from ..utils.interactivity_utils import displayed_plane_from_nd_line_segment
 from ..utils.layer_utils import _FeatureTable
-from ..utils.style_encoding import IndicesType, _get_style_values
+from ..utils.style_encoding import StyleCollection, _get_style_values
 from ..utils.text_manager import TextManager
 from ._points_constants import SYMBOL_ALIAS, Mode, Shading, Symbol
 from ._points_mouse_bindings import add, highlight, select
@@ -216,51 +211,9 @@ class Points(Layer):
         The amount of antialiasing pixels for both the marker and marker edge.
     """
 
-    class Style(EventedModel):
+    class Style(StyleCollection):
         edge_color: ColorEncoding = ConstantColorEncoding(constant='black')
         face_color: ColorEncoding = ConstantColorEncoding(constant='white')
-
-        @validator('edge_color', pre=True, always=True)
-        def _check_edge_color(cls, edge_color) -> ColorEncoding:
-            return validate_color_encoding(edge_color)
-
-        @validator('face_color', pre=True, always=True)
-        def _check_face_color(cls, face_color) -> ColorEncoding:
-            return validate_color_encoding(face_color)
-
-        @property
-        def _encodings(self):
-            return self.edge_color, self.face_color
-
-        def _apply(self, features: Any) -> None:
-            for encoding in self._encodings:
-                encoding._apply(features)
-
-        def _clear(self) -> None:
-            for encoding in self._encodings:
-                encoding._clear()
-
-        def _refresh(self, features: Any) -> None:
-            self._clear()
-            self._apply(features)
-
-        def _delete(self, indices: IndicesType) -> None:
-            for encoding in self._encodings:
-                encoding._delete(indices)
-
-        def _copy(self, indices) -> dict:
-            return {
-                'edge_color': _get_style_values(self.edge_color, indices),
-                'face_color': _get_style_values(self.face_color, indices),
-            }
-
-        def _paste(
-            self, *, edge_color: ColorArray, face_color: ColorArray
-        ) -> None:
-            self.edge_color._append(edge_color)
-            self.face_color._append(face_color)
-
-    # TODO  write better documentation for edge_color and face_color
 
     # The max number of points that will ever be used to render the thumbnail
     # If more points are present then they are randomly subsampled
