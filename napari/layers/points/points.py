@@ -1450,7 +1450,9 @@ class Points(Layer):
             # Draw single pixel points in the colormapped thumbnail.
             colormapped = np.zeros(tuple(thumbnail_shape) + (4,))
             colormapped[..., 3] = 1
-            colors = self.style.face_color._values[thumbnail_indices]
+            colors = _get_style_values(
+                self.style.face_color, thumbnail_indices, 1
+            )
             colormapped[coords[:, 0], coords[:, 1]] = colors
 
         colormapped[..., 3] *= self.opacity
