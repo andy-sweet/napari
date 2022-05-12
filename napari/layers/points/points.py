@@ -913,17 +913,22 @@ class Points(Layer):
             return
         index = list(self._selected_data)
 
-        # Only update manual color encodings when selection changes,
+        # Only update manual color encodings when the selection changes,
         # other colors are constant or are derived from features.
-        if isinstance(self.style.edge_color, ManualColorEncoding):
-            edge_colors = np.unique(self.style.edge_color.array[index], axis=0)
-            if len(edge_colors) == 1:
+        edge_colors = _get_style_values(self.style.edge_color, index)
+        edge_colors = np.unique(np.atleast_2d(edge_colors), axis=0)
+        print(f'edge_colors: {edge_colors}')
+        if len(edge_colors) == 1:
+            if isinstance(self.style.edge_color, ManualColorEncoding):
                 self.style.edge_color.default = edge_colors[0]
+            self.events.current_edge_color()
 
-        if isinstance(self.style.face_color, ManualColorEncoding):
-            face_colors = np.unique(self.style.face_color.array[index], axis=0)
-            if len(face_colors) == 1:
+        face_colors = _get_style_values(self.style.face_color, index)
+        face_colors = np.unique(np.atleast_2d(face_colors), axis=0)
+        if len(face_colors) == 1:
+            if isinstance(self.style.face_color, ManualColorEncoding):
                 self.style.face_color.default = face_colors[0]
+            self.events.current_face_color()
 
         size = list({self.size[i, self._dims_displayed].mean() for i in index})
         if len(size) == 1:

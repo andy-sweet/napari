@@ -3,6 +3,10 @@ from qtpy.QtCore import Qt, Slot
 from qtpy.QtWidgets import QButtonGroup, QCheckBox, QComboBox, QHBoxLayout
 
 from ...layers.points._points_constants import SYMBOL_TRANSLATION, Mode
+from ...layers.utils._color_encoding import (
+    ConstantColorEncoding,
+    ManualColorEncoding,
+)
 from ...utils.action_manager import action_manager
 from ...utils.events import disconnect_events
 from ...utils.translations import trans
@@ -68,6 +72,8 @@ class QtPointsControls(QtLayerControls):
         )
         self.layer.events.symbol.connect(self._on_symbol_change)
         self.layer.events.size.connect(self._on_size_change)
+        self.layer.style.events.face_color.connect(self._on_face_color_change)
+        self.layer.style.events.edge_color.connect(self._on_edge_color_change)
         self.layer.events.current_edge_color.connect(
             self._on_current_edge_color_change
         )
@@ -102,10 +108,12 @@ class QtPointsControls(QtLayerControls):
             initial_color=self.layer.current_face_color,
             tooltip=trans._('click to set current face color'),
         )
+        self._on_face_color_change()
         self.edgeColorEdit = QColorSwatchEdit(
             initial_color=self.layer.current_edge_color,
             tooltip=trans._('click to set current edge color'),
         )
+        self._on_edge_color_change()
         self.faceColorEdit.color_changed.connect(self.changeFaceColor)
         self.edgeColorEdit.color_changed.connect(self.changeEdgeColor)
 
@@ -291,6 +299,19 @@ class QtPointsControls(QtLayerControls):
         """Update edge color of layer model from color picker user input."""
         with self.layer.events.current_edge_color.blocker():
             self.layer.current_edge_color = color
+
+    def _on_face_color_change(self):
+        pass
+        # self.faceColorEdit.setEnabled(self._has_color_control(self.layer.style.face_color))
+
+    def _on_edge_color_change(self):
+        pass
+        # self.edgeColorEdit.setEnabled(self._has_color_control(self.layer.style.edge_color))
+
+    def _has_color_control(self, encoding) -> bool:
+        return isinstance(
+            encoding, (ConstantColorEncoding, ManualColorEncoding)
+        )
 
     def _on_current_face_color_change(self):
         """Receive layer.current_face_color() change event and update view."""
