@@ -1,3 +1,4 @@
+import logging
 import warnings
 from contextlib import contextmanager
 from copy import copy, deepcopy
@@ -7,6 +8,8 @@ from typing import Dict, List, Tuple, Union
 import numpy as np
 import pandas as pd
 from vispy.color import get_color_names
+
+from napari.layers.base.base import LayerSliceRequest, LayerSliceResponse
 
 from ...utils.colormaps import Colormap, ValidColormapArg, ensure_colormap
 from ...utils.colormaps.colormap_utils import ColorType
@@ -94,6 +97,8 @@ _FWD_SHAPE_HELP = {}
 for t, modes in _REV_SHAPE_HELP.items():
     for m in modes:
         _FWD_SHAPE_HELP[m] = t
+
+LOGGER = logging.getLogger("napari.layers.shapes")
 
 
 class Shapes(Layer):
@@ -2276,6 +2281,24 @@ class Shapes(Layer):
         This is generally used if the properties were updated without changing the data
         """
         self.text.refresh_text(self.properties)
+
+    def _get_slice(self, request: LayerSliceRequest) -> LayerSliceResponse:
+        LOGGER.debug('Points._get_slice : %s', request)
+
+        # slice_indices = self._get_slice_indices(request)
+        # indices, _ = self._slice_data(slice_indices)
+
+        # How do we get the current data?
+        data = None
+
+        # simplified is effectively guaranteed to be an affine transform
+        transform = self._transforms.simplified.set_slice(
+            list(request.dims_displayed)
+        )
+
+        return LayerSliceResponse(
+            request=request, data=data, transform=transform
+        )
 
     def _set_view_slice(self):
         """Set the view given the slicing indices."""

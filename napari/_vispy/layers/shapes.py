@@ -1,11 +1,17 @@
+import logging
+
 import numpy as np
+
+from napari.layers.base.base import LayerSliceResponse
 
 from ...settings import get_settings
 from ...utils.events import disconnect_events
 from ..utils.gl import BLENDING_MODES
 from ..utils.text import update_text
 from ..visuals.shapes import ShapesVisual
-from .base import VispyBaseLayer
+from .base import VispyBaseLayer, _prepare_transform
+
+LOGGER = logging.getLogger("napari._vispy.layers.shape")
 
 
 class VispyShapesLayer(VispyBaseLayer):
@@ -24,9 +30,27 @@ class VispyShapesLayer(VispyBaseLayer):
         self.node._subvisuals[3].scaling = False
 
         self.reset()
-        self._on_data_change()
+        # self._on_data_change()
+
+    def _set_slice(self, response: LayerSliceResponse) -> None:
+        LOGGER.debug('VispyShapeLayer._set_slice : %s', response.request)
+
+        # How do we update data?
+        # points:
+        # self.node._subvisuals[0].set_data(response.data[:, ::-1])
+        # Shapes visual:
+        #          super().__init__([Mesh(), Mesh(), Line(), Markers(), Text()])
+        #         - Mesh for shape faces (vispy.MeshVisual)
+        # - Mesh for highlights (vispy.MeshVisual)
+        # - Lines for highlights (vispy.LineVisual)
+        # - Vertices for highlights (vispy.MarkersVisual)
+        # -  Text labels (vispy.TextVisual)
+
+        self._master_transform.matrix = _prepare_transform(response.transform)
 
     def _on_data_change(self):
+        LOGGER.debug('VispyShapesLayer._on_data_change')
+
         faces = self.layer._data_view._mesh.displayed_triangles
         colors = self.layer._data_view._mesh.displayed_triangles_colors
         vertices = self.layer._data_view._mesh.vertices
