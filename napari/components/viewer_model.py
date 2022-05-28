@@ -4,6 +4,7 @@ import inspect
 import itertools
 import os
 import warnings
+from concurrent.futures import Executor, Future, ThreadPoolExecutor
 from functools import lru_cache
 from pathlib import Path
 from typing import (
@@ -135,6 +136,9 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
     _canvas_size: Tuple[int, int] = (600, 800)
     _ctx: Context
 
+    _slice_executor: Executor
+    _slice_task: Optional[Future] = None
+
     def __init__(self, title='napari', ndisplay=2, order=(), axis_labels=()):
         # max_depth=0 means don't look for parent contexts.
         self._ctx = create_context(self, max_depth=0)
@@ -149,6 +153,10 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             },
         )
         self.__config__.extra = Extra.ignore
+
+        # Defining the default value when declaring the private attribute
+        # causes pydantic to try to take a deepcopy which fails.
+        self._slice_executor = ThreadPoolExecutor(max_workers=1)
 
         settings = get_settings()
         self.tooltip.visible = settings.appearance.layer_tooltip_visibility
@@ -177,7 +185,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         self.dims.events.ndisplay.connect(self.reset_view)
         self.dims.events.order.connect(self._update_layers)
         self.dims.events.order.connect(self.reset_view)
-        self.dims.events.current_step.connect(self._update_layers)
+        self.dims.events.current_step.connect(self._update_layers_async)
         self.cursor.events.position.connect(self._on_cursor_position_change)
         self.cursor.events.position.connect(
             throttled(self._update_status_bar_from_cursor, timeout=50)
@@ -314,6 +322,11 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         ]
         empty_labels = np.zeros(shape, dtype=int)
         self.add_labels(empty_labels, translate=np.array(corner), scale=scale)
+
+    def _update_layers_async(self):
+        if self._slice_task is not None:
+            self._slice_task.cancel()
+        self._slice_executor.submit(self._update_layers)
 
     def _update_layers(self, *, layers=None):
         """Updates the contained layers.
