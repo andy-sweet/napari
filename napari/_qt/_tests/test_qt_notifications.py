@@ -1,5 +1,4 @@
 import threading
-import time
 import warnings
 from concurrent.futures import Future
 from unittest.mock import patch
@@ -21,20 +20,20 @@ from napari.utils.notifications import (
 def _threading_warn():
     thr = threading.Thread(target=_warn)
     thr.start()
+    thr.join()
 
 
 def _warn():
-    time.sleep(0.1)
     warnings.warn('warning!')
 
 
 def _threading_raise():
     thr = threading.Thread(target=_raise)
     thr.start()
+    thr.join()
 
 
 def _raise():
-    time.sleep(0.1)
     raise ValueError("error!")
 
 
@@ -79,7 +78,6 @@ def test_notification_manager_via_gui(
         ]:
             notification_manager.records = []
             qtbot.mouseClick(btt, Qt.LeftButton)
-            qtbot.wait(500)
             assert len(notification_manager.records) == 1
             assert notification_manager.records[0].message == expected_message
             notification_manager.records = []
