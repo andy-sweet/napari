@@ -581,6 +581,8 @@ def test_active_layer_status_update():
     assert len(viewer.layers) == 2
     assert viewer.layers.selection.active == viewer.layers[1]
 
+    # TODO: consider removing throttling for this test, or find/add
+    # some way in psygnal to wait for some signal (e.g. viewer.events.status).
     # wait 1 s to avoid the cursor event throttling
     time.sleep(1)
     viewer.cursor.position = [1, 1, 1, 1, 1]

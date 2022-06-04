@@ -345,7 +345,9 @@ def combine_widgets(
 
 
 def add_flash_animation(
-    widget: QWidget, duration: int = 300, color: Array = (0.5, 0.5, 0.5, 0.5)
+    widget: QWidget,
+    duration_ms: int = 300,
+    color: Array = (0.5, 0.5, 0.5, 0.5),
 ):
     """Add flash animation to widget to highlight certain action (e.g. taking a screenshot).
 
@@ -353,8 +355,8 @@ def add_flash_animation(
     ----------
     widget : QWidget
         Any Qt widget.
-    duration : int
-        Duration of the flash animation.
+    duration_ms : int
+        Duration of the flash animation in milliseconds.
     color : Array
         Color of the flash animation. By default, we use light gray.
     """
@@ -378,7 +380,7 @@ def add_flash_animation(
     widget._flash_animation.start()
 
     # now  set an actual time for the flashing and an intermediate color
-    widget._flash_animation.setDuration(duration)
+    widget._flash_animation.setDuration(duration_ms)
     widget._flash_animation.setKeyValueAt(0.1, QColor(*color))
 
 

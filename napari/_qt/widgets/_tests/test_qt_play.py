@@ -122,14 +122,10 @@ def test_play_raises_index_errors(qtbot, ref_view):
     # play axis is out of range
     with pytest.raises(IndexError):
         view.dims.play(4, 20)
-        qtbot.wait(20)
-        view.dims.stop()
 
     # data doesn't have 20 frames
     with pytest.raises(IndexError):
         view.dims.play(0, 20, frame_range=[2, 20])
-        qtbot.wait(20)
-        view.dims.stop()
 
 
 def test_play_raises_value_errors(qtbot, ref_view):
@@ -137,14 +133,10 @@ def test_play_raises_value_errors(qtbot, ref_view):
     # frame_range[1] not > frame_range[0]
     with pytest.raises(ValueError):
         view.dims.play(0, 20, frame_range=[2, 2])
-        qtbot.wait(20)
-        view.dims.stop()
 
     # that's not a valid loop_mode
     with pytest.raises(ValueError):
         view.dims.play(0, 20, loop_mode=5)
-        qtbot.wait(20)
-        view.dims.stop()
 
 
 @pytest.mark.skip(reason="fails too often... tested indirectly elsewhere")
@@ -160,18 +152,12 @@ def test_play_api(qtbot, ref_view):
 
     view.dims.dims.events.current_step.connect(increment)
 
-    view.dims.play(0, 20)
     # wait for the thread to start before timing...
-    qtbot.waitSignal(view.dims._animation_thread.started, timeout=10000)
-    qtbot.wait(370)
+    with qtbot.waitSignal(view.dims._animation_thread.started, timeout=10000):
+        view.dims.play(0, 20)
+    qtbot.waitUntil(lambda: view.dims._frame >= 2)
     with qtbot.waitSignal(view.dims._animation_thread.finished, timeout=7000):
         view.dims.stop()
-    A = view.dims._frame
-    assert A >= 3
-
-    # make sure the stop button actually worked
-    qtbot.wait(150)
-    assert A == view.dims._frame
 
 
 def test_playing_hidden_slider_does_nothing(ref_view):

@@ -52,6 +52,8 @@ def test_visibility_consistency(qtbot, make_napari_viewer):
     layer = viewer.add_image(
         np.random.random((200, 200)), contrast_limits=[0, 10]
     )
+    # TODO: what are we waiting for. Is there a Qt signal we could
+    # equivalently wait for?
     qtbot.wait(10)
     layer.contrast_limits = (0, 2)
     screen1 = viewer.screenshot(flash=False).astype('float')
