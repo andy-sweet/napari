@@ -16,7 +16,7 @@ def test_radio_button(qtbot):
     assert btn.toolTip() == 'tooltip'
 
     btn.click()
-    qtbot.waitUntil(lambda: layer.mode == 'add')
+    assert layer.mode == 'add'
 
 
 def test_push_button(qtbot):
@@ -33,4 +33,4 @@ def test_push_button(qtbot):
     assert btn.toolTip() == 'tooltip'
 
     btn.click()
-    qtbot.waitUntil(lambda: layer.test_prop)
+    assert layer.test_prop
