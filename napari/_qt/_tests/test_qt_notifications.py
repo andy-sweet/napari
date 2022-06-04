@@ -9,6 +9,7 @@ from qtpy.QtCore import Qt, QThread
 from qtpy.QtWidgets import QPushButton
 
 from napari._qt.dialogs.qt_notification import NapariQtNotification
+from napari._tests.utils import DEFAULT_TIMEOUT_SECS
 from napari.utils.notifications import (
     ErrorNotification,
     Notification,
@@ -20,7 +21,7 @@ from napari.utils.notifications import (
 def _threading_warn():
     thr = threading.Thread(target=_warn)
     thr.start()
-    thr.join()
+    thr.join(timeout=DEFAULT_TIMEOUT_SECS)
 
 
 def _warn():
@@ -30,7 +31,7 @@ def _warn():
 def _threading_raise():
     thr = threading.Thread(target=_raise)
     thr.start()
-    thr.join()
+    thr.join(timeout=DEFAULT_TIMEOUT_SECS)
 
 
 def _raise():
@@ -104,7 +105,7 @@ def test_show_notification_from_thread(mock_show, monkeypatch, qtbot):
             )
             res = NapariQtNotification.show_notification(notif)
             assert isinstance(res, Future)
-            assert res.result() is None
+            assert res.result(timeout=DEFAULT_TIMEOUT_SECS) is None
             mock_show.assert_called_once()
 
     thread = CustomThread()

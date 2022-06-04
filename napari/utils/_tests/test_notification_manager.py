@@ -5,6 +5,7 @@ from typing import List
 
 import pytest
 
+from napari._tests.utils import DEFAULT_TIMEOUT_SECS
 from napari.utils.notifications import (
     Notification,
     notification_manager,
@@ -132,7 +133,7 @@ def test_notification_manager_no_gui_with_threading():
 
         exception_thread = threading.Thread(target=_raise)
         exception_thread.start()
-        exception_thread.join()
+        exception_thread.join(timeout=DEFAULT_TIMEOUT_SECS)
 
         try:
             raise ValueError("a")
@@ -146,7 +147,7 @@ def test_notification_manager_no_gui_with_threading():
         assert warnings.showwarning == notification_manager.receive_warning
         warning_thread = threading.Thread(target=_warn)
         warning_thread.start()
-        warning_thread.join()
+        warning_thread.join(timeout=DEFAULT_TIMEOUT_SECS)
 
         assert len(notification_manager.records) == 2
         assert store[-1].type == 'warning'

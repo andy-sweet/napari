@@ -103,10 +103,10 @@ def test_qt_triangle_maximum(triangle_widget):
 def test_qt_triangle_signal(qtbot, triangle_widget):
     widget = triangle_widget()
 
-    with qtbot.waitSignal(widget.valueChanged, timeout=500):
+    with qtbot.waitSignal(widget.valueChanged):
         widget.setValue(7)
 
-    with qtbot.waitSignal(widget.valueChanged, timeout=500):
+    with qtbot.waitSignal(widget.valueChanged):
         widget.setValue(-5)
 
 
@@ -232,8 +232,8 @@ def test_qt_highlight_size_preview_widget_signal(
 ):
     widget = highlight_size_preview_widget()
 
-    with qtbot.waitSignal(widget.valueChanged, timeout=500):
+    with qtbot.waitSignal(widget.valueChanged):
         widget.setValue(7)
 
-    with qtbot.waitSignal(widget.valueChanged, timeout=500):
+    with qtbot.waitSignal(widget.valueChanged):
         widget.setValue(-5)

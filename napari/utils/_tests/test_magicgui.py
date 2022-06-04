@@ -6,7 +6,7 @@ import pytest
 from magicgui import magicgui
 
 from napari import Viewer, layers, types
-from napari._tests.utils import layer_test_data
+from napari._tests.utils import DEFAULT_TIMEOUT_SECS, layer_test_data
 from napari.layers import Image, Labels, Layer
 from napari.utils._proxies import PublicOnlyProxy
 from napari.utils.misc import all_subclasses
@@ -76,7 +76,7 @@ def test_magicgui_add_future_data(make_napari_viewer, LayerType, data, ndim):
     assert len(viewer.layers) == 0
 
     future = add_data()
-    future.result()
+    future.result(timeout=DEFAULT_TIMEOUT_SECS)
 
     assert len(viewer.layers) == 1
     assert isinstance(viewer.layers[0], LayerType)

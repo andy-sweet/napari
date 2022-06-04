@@ -12,6 +12,7 @@ from napari._qt.layer_controls.qt_image_controls_base import (
     QtBaseImageControls,
     range_to_decimals,
 )
+from napari._tests.utils import DEFAULT_TIMEOUT_MILLIS
 from napari.layers import Image, Surface
 
 _IMAGE = np.arange(100).astype(np.uint16).reshape((10, 10))
@@ -74,7 +75,9 @@ def test_range_popup_clim_buttons(mock_show, qtbot, layer):
     reset_button = qtctrl.clim_popup.findChild(
         QPushButton, "reset_clims_button"
     )
-    with qtbot.waitSignal(reset_button.clicked):
+    with qtbot.waitSignal(
+        reset_button.clicked, timeout=DEFAULT_TIMEOUT_MILLIS
+    ):
         reset_button.click()
     assert tuple(qtctrl.contrastLimitsSlider.value()) == original_clims
 
@@ -85,7 +88,9 @@ def test_range_popup_clim_buttons(mock_show, qtbot, layer):
     # Surface will not have a "full range button"
     if np.issubdtype(layer.dtype, np.integer):
         info = np.iinfo(layer.dtype)
-        with qtbot.waitSignal(rangebtn.clicked):
+        with qtbot.waitSignal(
+            rangebtn.clicked, timeout=DEFAULT_TIMEOUT_MILLIS
+        ):
             rangebtn.click()
         assert tuple(layer.contrast_limits_range) == (info.min, info.max)
         min_ = qtctrl.contrastLimitsSlider.minimum()
