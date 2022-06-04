@@ -74,8 +74,8 @@ def test_range_popup_clim_buttons(mock_show, qtbot, layer):
     reset_button = qtctrl.clim_popup.findChild(
         QPushButton, "reset_clims_button"
     )
-    reset_button.click()
-    qtbot.wait(20)
+    with qtbot.waitSignal(reset_button.clicked):
+        reset_button.click()
     assert tuple(qtctrl.contrastLimitsSlider.value()) == original_clims
 
     rangebtn = qtctrl.clim_popup.findChild(
@@ -85,8 +85,8 @@ def test_range_popup_clim_buttons(mock_show, qtbot, layer):
     # Surface will not have a "full range button"
     if np.issubdtype(layer.dtype, np.integer):
         info = np.iinfo(layer.dtype)
-        rangebtn.click()
-        qtbot.wait(20)
+        with qtbot.waitSignal(rangebtn.clicked):
+            rangebtn.click()
         assert tuple(layer.contrast_limits_range) == (info.min, info.max)
         min_ = qtctrl.contrastLimitsSlider.minimum()
         max_ = qtctrl.contrastLimitsSlider.maximum()
