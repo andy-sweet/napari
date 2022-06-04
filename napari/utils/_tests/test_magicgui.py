@@ -1,5 +1,4 @@
 import sys
-import time
 from typing import List
 
 import numpy as np
@@ -61,33 +60,27 @@ def test_magicgui_add_data(make_napari_viewer, LayerType, data, ndim):
 @pytest.mark.parametrize('LayerType, data, ndim', test_data)
 def test_magicgui_add_future_data(make_napari_viewer, LayerType, data, ndim):
     """Test that annotating with Future[] works."""
-    from concurrent.futures import Future
-    from functools import partial
-
-    from qtpy.QtCore import QTimer
+    from concurrent.futures import Future, ThreadPoolExecutor
 
     viewer = make_napari_viewer()
     dtype = getattr(types, f'{LayerType.__name__}Data')
+    executor = ThreadPoolExecutor(max_workers=1)
 
     @magicgui
     # where `dtype` is something like napari.types.ImageData
     def add_data() -> Future[dtype]:  # type: ignore
-        future = Future()
-        # simulate something that isn't immediately ready when function returns
-        QTimer.singleShot(10, partial(future.set_result, data))
-        return future
+        return executor.submit(lambda: data)
 
     viewer.window.add_dock_widget(add_data)
 
-    def _assert_stuff():
-        assert len(viewer.layers) == 1
-        assert isinstance(viewer.layers[0], LayerType)
-        assert viewer.layers[0].source.widget == add_data
-
-    add_data()
     assert len(viewer.layers) == 0
-    QTimer.singleShot(50, _assert_stuff)
-    time.sleep(0.1)
+
+    future = add_data()
+    future.result()
+
+    assert len(viewer.layers) == 1
+    assert isinstance(viewer.layers[0], LayerType)
+    assert viewer.layers[0].source.widget == add_data
 
 
 @pytest.mark.sync_only
@@ -102,7 +95,6 @@ def test_magicgui_add_threadworker(qtbot, make_napari_viewer):
     def add_data(x: int) -> FunctionWorker[types.ImageData]:
         @thread_worker(start_thread=False)
         def _slow():
-            time.sleep(0.1)
             return DATA
 
         return _slow()
