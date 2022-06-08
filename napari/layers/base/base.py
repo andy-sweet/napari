@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import warnings
 from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
@@ -38,6 +39,13 @@ from ..utils.plane import ClippingPlane, ClippingPlaneList
 from ._base_constants import Blending
 
 Extent = namedtuple('Extent', 'data world step')
+
+# Configuration should be done elsewhere, but this is good enough for now.
+logging.basicConfig(
+    format='%(levelname)s : %(asctime)s : %(threadName)s : %(pathname)s:%(lineno)d : %(message)s',
+    level=logging.DEBUG,
+)
+LOGGER = logging.getLogger("napari.layers.base")
 
 
 def no_op(layer: Layer, event: Event) -> None:
