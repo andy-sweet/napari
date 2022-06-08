@@ -333,7 +333,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         # which will be superseded by a new one.
         if self._slice_task is not None:
             self._slice_task.cancel()
-        self._slice_executor.submit(self._update_layers)
+        self._slice_task = self._slice_executor.submit(self._update_layers)
 
     def _update_layers(self, *, layers=None):
         """Updates the contained layers.
