@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import logging
 import os
 import warnings
 from concurrent.futures import Executor, Future, ThreadPoolExecutor
@@ -76,6 +77,8 @@ PathLike = Union[str, Path]
 PathOrPaths = Union[PathLike, Sequence[PathLike]]
 
 __all__ = ['ViewerModel', 'valid_add_kwargs']
+
+LOGGER = logging.getLogger("napari.components.viewer_model")
 
 
 def _current_theme() -> str:
@@ -324,6 +327,10 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         self.add_labels(empty_labels, translate=np.array(corner), scale=scale)
 
     def _update_layers_async(self):
+        LOGGER.debug('ViewerModel._update_layers_async: %s', self.dims.point)
+        # If the last slice task has started is this should have no effect.
+        # But otherwise this has the positive effect of removing a pending task,
+        # which will be superseded by a new one.
         if self._slice_task is not None:
             self._slice_task.cancel()
         self._slice_executor.submit(self._update_layers)
@@ -336,6 +343,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         layers : list of napari.layers.Layer, optional
             List of layers to update. If none provided updates all.
         """
+        LOGGER.debug('ViewerModel._update_layers: %s', self.dims.point)
         layers = layers or self.layers
         for layer in layers:
             layer._slice_dims(
