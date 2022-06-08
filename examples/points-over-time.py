@@ -23,7 +23,7 @@ image_layer = viewer.add_image(
 pts_layer = viewer.add_points(
         pts_coordinates,
         features={'value': np.asarray(pts_values[:, 0])},
-        face_color='value',
+        style={'face_color': {'feature': 'value', 'colormap': 'viridis'}},
         size=2,
         )
 
@@ -32,7 +32,7 @@ def set_pts_features(pts_layer, values_table, step):
     # step is a 4D coordinate with the current slider position for each dim
     column = step[0]  # grab the leading ("time") coordinate
     pts_layer.features['value'] = np.asarray(values_table[:, column])
-    pts_layer.face_color = 'value'  # force features refresh
+    pts_layer.style = {'face_color': {'feature': 'value', 'colormap': 'viridis'}}  # force features refresh
 
 
 viewer.dims.events.current_step.connect(
