@@ -168,8 +168,8 @@ def test_qt_size_slider_preview_widget_value_invalid(
 def test_qt_size_slider_preview_signal(qtbot, font_size_preview_widget):
     widget = font_size_preview_widget()
 
-    with qtbot.waitSignal(widget.valueChanged, timeout=500):
+    with qtbot.waitSignal(widget.valueChanged):
         widget.setValue(7)
 
-    with qtbot.waitSignal(widget.valueChanged, timeout=500):
+    with qtbot.waitSignal(widget.valueChanged):
         widget.setValue(-5)

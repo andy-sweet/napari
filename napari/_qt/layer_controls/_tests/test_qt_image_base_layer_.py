@@ -75,7 +75,6 @@ def test_range_popup_clim_buttons(mock_show, qtbot, layer):
         QPushButton, "reset_clims_button"
     )
     reset_button.click()
-    qtbot.wait(20)
     assert tuple(qtctrl.contrastLimitsSlider.value()) == original_clims
 
     rangebtn = qtctrl.clim_popup.findChild(
@@ -86,7 +85,6 @@ def test_range_popup_clim_buttons(mock_show, qtbot, layer):
     if np.issubdtype(layer.dtype, np.integer):
         info = np.iinfo(layer.dtype)
         rangebtn.click()
-        qtbot.wait(20)
         assert tuple(layer.contrast_limits_range) == (info.min, info.max)
         min_ = qtctrl.contrastLimitsSlider.minimum()
         max_ = qtctrl.contrastLimitsSlider.maximum()

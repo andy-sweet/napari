@@ -336,27 +336,10 @@ def test_qt_viewer_clipboard_with_flash(make_napari_viewer, qtbot):
     clipboard_image = QGuiApplication.clipboard().image()
     assert clipboard_image.isNull()
 
-    # capture screenshot
-    with pytest.warns(FutureWarning):
-        viewer.window.qt_viewer.clipboard(flash=True)
-
+    # capture screenshot of canvas only
     viewer.window.clipboard(flash=False, canvas_only=True)
-
     clipboard_image = QGuiApplication.clipboard().image()
     assert not clipboard_image.isNull()
-
-    # ensure the flash effect is applied
-    assert (
-        viewer.window._qt_viewer._canvas_overlay.graphicsEffect() is not None
-    )
-    assert hasattr(
-        viewer.window._qt_viewer._canvas_overlay, "_flash_animation"
-    )
-    qtbot.wait(500)  # wait for the animation to finish
-    assert viewer.window._qt_viewer._canvas_overlay.graphicsEffect() is None
-    assert not hasattr(
-        viewer.window._qt_viewer._canvas_overlay, "_flash_animation"
-    )
 
     # clear clipboard and grab image from application view
     QGuiApplication.clipboard().clear()
@@ -367,13 +350,6 @@ def test_qt_viewer_clipboard_with_flash(make_napari_viewer, qtbot):
     viewer.window.clipboard(flash=True)
     clipboard_image = QGuiApplication.clipboard().image()
     assert not clipboard_image.isNull()
-
-    # ensure the flash effect is applied
-    assert viewer.window._qt_window.graphicsEffect() is not None
-    assert hasattr(viewer.window._qt_window, "_flash_animation")
-    qtbot.wait(500)  # wait for the animation to finish
-    assert viewer.window._qt_window.graphicsEffect() is None
-    assert not hasattr(viewer.window._qt_window, "_flash_animation")
 
 
 def test_qt_viewer_clipboard_without_flash(make_napari_viewer):
@@ -486,6 +462,7 @@ def test_memory_leaking(qtbot, make_napari_viewer):
     labels = weakref.ref(viewer.add_labels(data))
     del viewer.layers[0]
     del viewer.layers[0]
+    # TODO: what are we waiting for? Can we use qtbot.waitUntil?
     qtbot.wait(100)
     gc.collect()
     gc.collect()
@@ -501,6 +478,7 @@ def test_leaks_image(qtbot, make_napari_viewer):
     dr = weakref.ref(lr().data)
 
     viewer.layers.clear()
+    # TODO: what are we waiting for? Can we use qtbot.waitUntil?
     qtbot.wait(100)
     gc.collect()
     assert not gc.collect()
@@ -516,6 +494,7 @@ def test_leaks_labels(qtbot, make_napari_viewer):
     )
     dr = weakref.ref(lr().data)
     viewer.layers.clear()
+    # TODO: what are we waiting for? Can we use qtbot.waitUntil?
     qtbot.wait(100)
     gc.collect()
     assert not gc.collect()
