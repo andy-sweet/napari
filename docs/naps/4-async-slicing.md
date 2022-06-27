@@ -230,7 +230,7 @@ It's important to understand what state is currently used for slicing in napari.
 	- `ShapeList`
 		- `_slice_key`: `list[int]`, current slice key
 		- `_mesh`: `Mesh`, container to store meshes from shapes
-		- `shapes`: `List(Shape)`, list of underlying shapes
+		- `shapes`: `list[Shape]`, list of underlying shapes
 		- `displayed_vertices`, `List`
 		- `displayed_index`, `List`
 
