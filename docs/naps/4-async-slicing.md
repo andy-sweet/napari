@@ -223,6 +223,28 @@ It's important to understand what state is currently used for slicing in napari.
     - `_max_points_thumbnail`: `int`, if more points than this in slice, randomly sample them
     - `_selected_view`: `list[int]`, intersection of `_selected_data` and `_indices_view`, could be a cached property
 
+- `Shapes`
+    - `_data_view`: `ShapeList`, container around shape data
+    - `_feature_table`: `_FeatureTable`, dataframe-like features table, scales to number of shapes
+
+	- `ShapeList`
+		- `_slice_key`: `List(int)`, current slice key
+		- `_mesh`: `Mesh`, container to store meshes from shapes
+		- `shapes`: `List(Shape)`, list of underlying shapes
+		- `displayed_vertices`, `List`
+		- `displayed_index`, `List`
+
+	- `Shape` (and subclasses... `PolygonBase`, `Polygon`, etc.)
+		- `slice_key`: `List(int)`, min/max of non-displayed dimensions
+
+	- `Mesh`
+	    - Data to be shown
+			- `displayed_triangles`: `Array`, Triamgles to be drawn
+			- `displayed_triangles_index`: `Array`
+			- `displayed_triangles_colors`: `Array`, per triangle color
+		- Shape meshes generated at shape insertion
+		    - `vertices`, `vertices_centers`, `vertices_offsets`, `vertices_index`,
+		      `triangles`, `triangles_index`, `triangles_colors`, `triangles_z_order`
 
 ## Detailed description
 
