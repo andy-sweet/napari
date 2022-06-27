@@ -235,7 +235,7 @@ It's important to understand what state is currently used for slicing in napari.
 		- `displayed_index`, `List`
 
 	- `Shape` (and subclasses... `PolygonBase`, `Polygon`, etc.)
-		- `slice_key`: `List(int)`, min/max of non-displayed dimensions
+		- `slice_key`: `list[int]`, min/max of non-displayed dimensions
 
 	- `Mesh`
 	    - Data to be shown
