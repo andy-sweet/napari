@@ -228,7 +228,7 @@ It's important to understand what state is currently used for slicing in napari.
     - `_feature_table`: `_FeatureTable`, dataframe-like features table, scales to number of shapes
 
 	- `ShapeList`
-		- `_slice_key`: `List(int)`, current slice key
+		- `_slice_key`: `list[int]`, current slice key
 		- `_mesh`: `Mesh`, container to store meshes from shapes
 		- `shapes`: `List(Shape)`, list of underlying shapes
 		- `displayed_vertices`, `List`
