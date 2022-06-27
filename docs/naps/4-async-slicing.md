@@ -239,7 +239,7 @@ It's important to understand what state is currently used for slicing in napari.
 
 	- `Mesh`
 	    - Data to be shown
-			- `displayed_triangles`: `Array`, Triamgles to be drawn
+			- `displayed_triangles`: `Array`, triangles to be drawn
 			- `displayed_triangles_index`: `Array`
 			- `displayed_triangles_colors`: `Array`, per triangle color
 		- Shape meshes generated at shape insertion
