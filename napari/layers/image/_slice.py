@@ -5,6 +5,7 @@ from typing import Any, Optional, Tuple, Union
 import numpy as np
 
 from napari.layers.utils._slice_input import _SliceInput
+from napari.utils._dask_utils import DaskIndexer
 from napari.utils.transforms import Affine
 from napari.utils.translations import trans
 
@@ -27,14 +28,18 @@ class _ImageSliceResponse:
     tile_to_data: Affine
         The affine transform from the sliced data to the full data at the highest resolution.
         For single-scale images, this will be the identity matrix.
-    indices: Any
-        The indices that were used to slice the layer's data.
+    dims : _SliceInput
+        Describes the slicing plane or bounding box in the layer's dimensions.
+    slice_indices : tuple of ints or slices
+        The slice indices in the layer's data space.
     """
 
     request: '_ImageSliceRequest'
     data: Any = field(repr=False)
     thumbnail: Optional[Any] = field(repr=False)
     tile_to_data: Affine = field(repr=False)
+    dims: _SliceInput
+    slice_indices: Tuple[Union[int, slice], ...]
 
 
 @dataclass(frozen=True)
@@ -54,7 +59,7 @@ class _ImageSliceRequest:
         Describes the slicing plane or bounding box in the layer's dimensions.
     data : Any
         The layer's data field, which is the main input to slicing.
-    slice_indices : Tuple[Union[int, slice], ...]
+    slice_indices : tuple of ints or slices
         The slice indices in the layer's data space.
     lazy : bool
         If True, do not materialize the data with `np.asarray` during execution.
@@ -67,6 +72,7 @@ class _ImageSliceRequest:
 
     dims: _SliceInput
     data: Any = field(repr=False)
+    dask_indexer: DaskIndexer
     slice_indices: Tuple[Union[int, slice], ...]
     multiscale: bool = field(repr=False)
     corner_pixels: np.ndarray
@@ -81,11 +87,12 @@ class _ImageSliceRequest:
         return True
 
     def __call__(self) -> _ImageSliceResponse:
-        return (
-            self._call_multi_scale()
-            if self.multiscale
-            else self._call_single_scale()
-        )
+        with self.dask_indexer():
+            return (
+                self._call_multi_scale()
+                if self.multiscale
+                else self._call_single_scale()
+            )
 
     def _call_single_scale(self) -> _ImageSliceResponse:
         image = self.data[self.slice_indices]
@@ -101,7 +108,8 @@ class _ImageSliceRequest:
             data=image,
             thumbnail=None,
             tile_to_data=tile_to_data,
-            request=self,
+            dims=self.dims,
+            slice_indices=self.slice_indices,
         )
 
     def _call_multi_scale(self) -> _ImageSliceResponse:
@@ -156,7 +164,8 @@ class _ImageSliceRequest:
             data=image,
             thumbnail=thumbnail,
             tile_to_data=tile_to_data,
-            request=self,
+            dims=self.dims,
+            slice_indices=self.slice_indices,
         )
 
     def _slice_indices_at_level(

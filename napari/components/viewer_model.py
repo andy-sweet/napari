@@ -61,7 +61,7 @@ from napari.utils.migrations import rename_argument
 from napari.utils.misc import is_sequence
 from napari.utils.mouse_bindings import MousemapProvider
 from napari.utils.progress import progress
-from napari.utils.theme import available_themes
+from napari.utils.theme import available_themes, is_theme_available
 from napari.utils.translations import trans
 
 DEFAULT_THEME = 'dark'
@@ -238,14 +238,13 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
 
     @validator('theme')
     def _valid_theme(cls, v):
-        themes = available_themes()
-        if v not in available_themes():
+        if not is_theme_available(v):
             raise ValueError(
                 trans._(
                     "Theme '{theme_name}' not found; options are {themes}.",
                     deferred=True,
                     theme_name=v,
-                    themes=themes,
+                    themes=", ".join(available_themes()),
                 )
             )
 
@@ -346,8 +345,8 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         empty_labels = np.zeros(shape, dtype=int)
         self.add_labels(empty_labels, translate=np.array(corner), scale=scale)
 
-    def _slice_layer(self, event: Event) -> None:
-        self._layer_slicer.slice_layers_async([event.layer], self.dims)
+    def _on_layer_reslice(self, event: Event) -> None:
+        self._layer_slicer.submit([event.layer], self.dims, _refresh_sync=True)
 
     def _update_layers(self, *, layers=None):
         """Updates the contained layers.
@@ -358,8 +357,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             List of layers to update. If none provided updates all.
         """
         layers = layers or self.layers
-        self._layer_slicer.slice_layers_async(layers, self.dims)
-        # TODO: does this need to occur after all slicing has finished?
+        self._layer_slicer.submit(layers, self.dims)
         position = list(self.cursor.position)
         for ind in self.dims.order[: -self.dims.ndisplay]:
             position[ind] = self.dims.point[ind]
@@ -503,7 +501,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         layer.events.shear.connect(self._on_layers_change)
         layer.events.affine.connect(self._on_layers_change)
         layer.events.name.connect(self.layers._update_name)
-        layer.events.reslice.connect(self._slice_layer)
+        layer.events.reslice.connect(self._on_layer_reslice)
         if hasattr(layer.events, "mode"):
             layer.events.mode.connect(self._on_layer_mode_change)
         self._layer_help_from_mode(layer)
