@@ -344,6 +344,7 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             editable=Event,
             loaded=Event,
             extent=Event,
+            reslice=Event,
             _ndisplay=Event,
             select=WarningEmitter(
                 trans._(
@@ -1140,7 +1141,11 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
 
     def refresh(self, event=None):
         """Refresh all layer data based on current view slice."""
-        if self.visible:
+        if not self.visible:
+            return
+        if hasattr(self, '_make_slice_request'):
+            self.events.reslice(Event('reslice', layer=self))
+        else:
             self.set_view_slice()
             self.events.set_data()
             self._update_thumbnail()

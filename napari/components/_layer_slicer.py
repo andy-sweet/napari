@@ -37,6 +37,9 @@ class _AsyncSliceable(Protocol[_SliceResponse]):
     def _make_slice_request(self, dims: Dims) -> _SliceRequest[_SliceResponse]:
         ...
 
+    def _update_slice_response(self, response: _SliceResponse) -> None:
+        ...
+
 
 class _LayerSlicer:
     """
@@ -116,7 +119,7 @@ class _LayerSlicer:
 
     def slice_layers_async(
         self, layers: Iterable[Layer], dims: Dims
-    ) -> Future[dict]:
+    ) -> Optional[Future[dict]]:
         """This should only be called from the main thread.
 
         Creates a new task and adds it to the _layers_to_task dict. Cancels
@@ -130,6 +133,9 @@ class _LayerSlicer:
         wait for any existing tasks that include that layer AND another layer,
         In other words, it will only cancel if the new task will replace the
         slices of all the layers in the pending task.
+
+        TODO: consider renaming this slice_layers, or maybe just slice, or run;
+        we don't know if slicing will be async or not.
         """
         # Cancel any tasks that are slicing a subset of the layers
         # being sliced now. This allows us to slice arbitrary sets of
@@ -153,7 +159,9 @@ class _LayerSlicer:
                 sync_requests[layer] = request
 
         # create task for slicing of each request/layer
-        task = self._executor.submit(self._slice_layers, async_requests)
+        task = None
+        if len(async_requests) > 0:
+            self._executor.submit(self._slice_layers, async_requests)
 
         if self._force_sync:
             task.result()
@@ -173,7 +181,7 @@ class _LayerSlicer:
 
     def shutdown(self) -> None:
         """Should be called from the main thread when this is no longer needed."""
-        self._executor.shutdown()
+        self._executor.shutdown(wait=True, cancel_futures=True)
 
     def _slice_layers(self, requests: Dict) -> Dict:
         """
