@@ -1,6 +1,6 @@
 import warnings
 from copy import copy
-from typing import Dict, List, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -10,11 +10,18 @@ from napari.layers.utils._color_manager_constants import ColorMode
 from napari.layers.utils.color_manager import ColorManager
 from napari.layers.utils.color_transformations import ColorType
 from napari.layers.utils.layer_utils import _FeatureTable
+from napari.layers.vectors._slice import (
+    _VectorsSliceRequest,
+    _VectorsSliceResponse,
+)
 from napari.layers.vectors._vector_utils import fix_data_vectors
 from napari.utils.colormaps import Colormap, ValidColormapArg
 from napari.utils.events import Event
 from napari.utils.events.custom_types import Array
 from napari.utils.translations import trans
+
+if TYPE_CHECKING:
+    from napari.components import Dims
 
 
 class Vectors(Layer):
@@ -662,6 +669,12 @@ class Vectors(Layer):
             self._view_data = self.data[:, :, disp]
             self._view_indices = np.arange(self.data.shape[0])
             self._view_alphas = 1.0
+
+    def _make_slice_request(self, dims: Dims) -> _VectorsSliceRequest:
+        return _VectorsSliceRequest(layer=self, dims=dims)
+
+    def _update_slice_response(self, response: _VectorsSliceResponse) -> None:
+        pass
 
     def _update_thumbnail(self):
         """Update thumbnail with current vectors and colors."""

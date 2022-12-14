@@ -74,6 +74,9 @@ class _ImageSliceRequest:
     downsample_factors: np.ndarray = field(repr=False)
     lazy: bool = field(default=False, repr=False)
 
+    def supports_async(self) -> bool:
+        return True
+
     def __call__(self) -> _ImageSliceResponse:
         return (
             self._call_multi_scale()

@@ -143,26 +143,29 @@ class _LayerSlicer:
         # The following logic gives us a way to handle those in the short
         # term as we develop, and also in the long term if there are cases
         # when we want to perform sync slicing anyway.
-        requests = {}
-        sync_layers = []
+        async_requests = {}
+        sync_requests = {}
         for layer in layers:
-            if isinstance(layer, _AsyncSliceable) and not self._force_sync:
-                requests[layer] = layer._make_slice_request(dims)
+            request = layer._make_slice_request(dims)
+            if request.supports_async():
+                async_requests[layer] = request
             else:
-                sync_layers.append(layer)
+                sync_requests[layer] = request
 
         # create task for slicing of each request/layer
-        task = self._executor.submit(self._slice_layers, requests)
+        task = self._executor.submit(self._slice_layers, async_requests)
 
-        # submit the sync layers (purposefully placed after async submission)
-        for layer in sync_layers:
-            layer._slice_dims(dims.point, dims.ndisplay, dims.order)
+        if self._force_sync:
+            task.result()
+
+        for task in sync_requests:
+            task()
 
         # store task for cancellation logic
         # this is purposefully done before adding the done callback to ensure
         # that the task is added before the done callback can be executed
         with self._lock_layers_to_task:
-            self._layers_to_task[tuple(requests)] = task
+            self._layers_to_task[tuple(async_requests)] = task
 
         task.add_done_callback(self._on_slice_done)
 
