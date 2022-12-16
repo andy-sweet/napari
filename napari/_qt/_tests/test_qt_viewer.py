@@ -777,15 +777,17 @@ def setup_viewer_for_async_slice_image(
     viewer: Viewer,
     data: Union[np.ndarray, List[np.ndarray]],
 ) -> VispyImageLayer:
+    from napari.components._async_layer_slicer import _AsyncLayerSlicer
+
+    viewer._layer_slicer = _AsyncLayerSlicer()
+    viewer._layer_slicer.events.ready.connect(
+        viewer.window._qt_viewer._on_slice_ready
+    )
     # Initially force synchronous slicing so any slicing caused
     # by adding the image finishes before any other slicing starts.
-    viewer._layer_slicer._force_sync = True
-    # Add the image and get the corresponding vispy image.
-    layer = viewer.add_image(data)
-    vispy_layer = viewer.window._qt_viewer.layer_to_visual[layer]
-    # Then allow asynchronous slicing for testing.
-    viewer._layer_slicer._force_sync = False
-    return vispy_layer
+    with viewer._layer_slicer.force_sync():
+        layer = viewer.add_image(data)
+    return viewer.window._qt_viewer.layer_to_visual[layer]
 
 
 def wait_until_vispy_image_data_equal(

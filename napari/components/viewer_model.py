@@ -23,7 +23,7 @@ import numpy as np
 from pydantic import Extra, Field, PrivateAttr, validator
 
 from napari import layers
-from napari.components._layer_slicer import _LayerSlicer
+from napari.components._layer_slicer import _LayerSlicer, _provide_layer_slicer
 from napari.components._viewer_mouse_bindings import dims_scroll
 from napari.components.camera import Camera
 from napari.components.cursor import Cursor
@@ -150,9 +150,9 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
     # different events systems
     mouse_over_canvas: bool = False
 
-    # Need to use default factory because slicer is not copyable which
-    # is required for default values.
-    _layer_slicer: _LayerSlicer = PrivateAttr(default_factory=_LayerSlicer)
+    _layer_slicer: _LayerSlicer = PrivateAttr(
+        default_factory=_provide_layer_slicer
+    )
 
     def __init__(self, title='napari', ndisplay=2, order=(), axis_labels=()):
         # max_depth=0 means don't look for parent contexts.
@@ -346,7 +346,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         self.add_labels(empty_labels, translate=np.array(corner), scale=scale)
 
     def _on_layer_reslice(self, event: Event) -> None:
-        self._layer_slicer.submit([event.layer], self.dims, _refresh_sync=True)
+        self._layer_slicer.submit([event.layer], self.dims, force=True)
 
     def _update_layers(self, *, layers=None):
         """Updates the contained layers.
