@@ -346,7 +346,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         self.add_labels(empty_labels, translate=np.array(corner), scale=scale)
 
     def _on_layer_reslice(self, event: Event) -> None:
-        self._layer_slicer.submit([event.layer], self.dims, _refresh_sync=True)
+        self._layer_slicer.submit([event.layer], self.dims, force=True)
 
     def _update_layers(self, *, layers=None):
         """Updates the contained layers.

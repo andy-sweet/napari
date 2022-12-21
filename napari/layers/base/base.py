@@ -7,13 +7,14 @@ from abc import ABC, abstractmethod
 from collections import defaultdict, namedtuple
 from contextlib import contextmanager
 from functools import cached_property
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import magicgui as mgui
 import numpy as np
 from npe2 import plugin_manager as pm
 
 from napari.layers.base._base_constants import Blending
+from napari.layers.base._slice import _LayerSliceRequest, _LayerSliceResponse
 from napari.layers.utils._slice_input import _SliceInput
 from napari.layers.utils.interactivity_utils import (
     drag_data_to_projected_distance,
@@ -44,6 +45,10 @@ from napari.utils.naming import magic_name
 from napari.utils.status_messages import generate_layer_coords_status
 from napari.utils.transforms import Affine, CompositeAffine, TransformChain
 from napari.utils.translations import trans
+
+if TYPE_CHECKING:
+    from napari.components import Dims
+
 
 Extent = namedtuple('Extent', 'data world step')
 
@@ -956,6 +961,19 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             order=order,
         )
 
+    def _make_slice_request(
+        self, dims: Dims, *, refresh_only: bool = False
+    ) -> _LayerSliceRequest:
+        if refresh_only:
+            return _LayerSliceRequest(layer=self, dims=self._slice_input)
+        slice_input = self._make_slice_input(
+            dims.point, dims.ndisplay, dims.order
+        )
+        return _LayerSliceRequest(layer=self, dims=slice_input)
+
+    def _update_slice_response(self, response: _LayerSliceResponse) -> None:
+        pass
+
     @abstractmethod
     def _update_thumbnail(self):
         raise NotImplementedError()
@@ -1141,11 +1159,7 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
 
     def refresh(self, event=None):
         """Refresh all layer data based on current view slice."""
-        if not self.visible:
-            return
-        if hasattr(self, '_make_slice_request'):
-            self.events.reslice(Event('reslice', layer=self))
-        else:
+        if self.visible:
             self.set_view_slice()
             self.events.set_data()
             self._update_thumbnail()

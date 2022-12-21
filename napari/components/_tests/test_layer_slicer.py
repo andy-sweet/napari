@@ -61,6 +61,7 @@ class FakeAsyncLayer:
         self._slice_request_count: int = 0
         self.slice_count: int = 0
         self.lock: RLock = RLock()
+        self.visible = True
 
     def _make_slice_request(self, dims: Dims) -> FakeSliceRequest:
         assert current_thread() == main_thread()
@@ -77,6 +78,7 @@ class FakeAsyncLayer:
 class FakeSyncLayer:
     def __init__(self):
         self.slice_count: int = 0
+        self.visible = True
 
     def _slice_dims(self, *args, **kwargs) -> None:
         self.slice_count += 1

@@ -105,6 +105,7 @@ class _ImageSliceRequest:
             name='tile2data', linear_matrix=np.eye(ndim), ndim=ndim
         )
         return _ImageSliceResponse(
+            request=self,
             data=image,
             thumbnail=None,
             tile_to_data=tile_to_data,
@@ -161,6 +162,7 @@ class _ImageSliceRequest:
             thumbnail = np.asarray(thumbnail)
 
         return _ImageSliceResponse(
+            request=self,
             data=image,
             thumbnail=thumbnail,
             tile_to_data=tile_to_data,

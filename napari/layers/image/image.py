@@ -772,7 +772,9 @@ class _ImageBase(IntensityVisualizationMixin, Layer):
         response = request()
         self._update_slice_response(response)
 
-    def _make_slice_request(self, dims: Dims) -> _ImageSliceRequest:
+    def _make_slice_request(
+        self, dims: Dims, *, refresh_only: bool = False
+    ) -> _ImageSliceRequest:
         """Make an image slice request based on the given dims and this image."""
         slice_input = self._make_slice_input(
             dims.point, dims.ndisplay, dims.order
