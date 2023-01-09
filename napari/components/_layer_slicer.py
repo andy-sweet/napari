@@ -98,17 +98,12 @@ class _LayerSlicer:
     ) -> Optional[Future[dict]]:
         """Slices the given layers with the given dims.
 
-        This should only be called from the main thread.
+        Submitting multiple layers at one generates multiple requests, but only ONE task.
 
-        Creates a new task and adds it to the _layers_to_task dict. Cancels
-        all tasks currently pending for that layer tuple.
-
-        Submitting multiple layers at one generates multiple requests (stored in a dict),
-        but only ONE task.
-
-        If multiple layers are sliced, any task that contains only one of those
-        layers can safely be cancelled. If a single layer is sliced, it will
-        wait for any existing tasks that include that layer AND another layer,
+        This will attempt to cancel all pending slicing tasks that can be entirely
+        replaced the new ones. If multiple layers are sliced, any task that contains
+        only one of those layers can safely be cancelled. If a single layer is sliced,
+        it will wait for any existing tasks that include that layer AND another layer,
         In other words, it will only cancel if the new task will replace the
         slices of all the layers in the pending task.
 
@@ -124,14 +119,10 @@ class _LayerSlicer:
 
         Returns
         -------
-        Future[dict] or none
-            A future with a result that maps from a layer to a layer slice
-            response. Or none if no async slicing tasks were submitted.
+        future of dict or none
+            A future with a result that maps from a layer to an async layer
+            slice response. Or none if no async slicing tasks were submitted.
         """
-        # Cancel any tasks that are slicing a subset of the layers
-        # being sliced now. This allows us to slice arbitrary sets of
-        # layers with some sensible and not too complex cancellation
-        # policy.
         if existing_task := self._find_existing_task(layers):
             logger.debug('Cancelling task for %s', layers)
             existing_task.cancel()
@@ -171,8 +162,9 @@ class _LayerSlicer:
         # Replace with cancel_futures=True in shutdown when we drop support
         # for Python 3.8
         with self._lock_layers_to_task:
-            for task in self._layers_to_task.values():
-                task.cancel()
+            tasks = tuple(self._layers_to_task.values())
+        for task in tasks:
+            task.cancel()
         self._executor.shutdown(wait=True)
 
     def _slice_layers(self, requests: Dict) -> Dict:
