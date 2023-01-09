@@ -503,9 +503,6 @@ class _QtMainWindow(QMainWindow):
                 time.sleep(0.1)
                 QApplication.processEvents()
 
-        # TODO: find the right place for this.
-        self._qt_viewer.viewer._layer_slicer.shutdown()
-
         self._qt_viewer.dims.stop()
 
         if self._quit_app:

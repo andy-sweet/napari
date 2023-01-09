@@ -107,6 +107,8 @@ class _LayerSlicer:
         In other words, it will only cancel if the new task will replace the
         slices of all the layers in the pending task.
 
+        This should only be called from the main thread.
+
         Parameters
         ----------
         layers: iterable of layers
