@@ -34,6 +34,7 @@ class _ImageSliceResponse:
         The slice indices in the layer's data space.
     """
 
+    request: '_ImageSliceRequest'
     data: Any = field(repr=False)
     thumbnail: Optional[Any] = field(repr=False)
     tile_to_data: Affine = field(repr=False)
@@ -82,6 +83,9 @@ class _ImageSliceRequest:
     downsample_factors: np.ndarray = field(repr=False)
     lazy: bool = field(default=False, repr=False)
 
+    def supports_async(self) -> bool:
+        return True
+
     def __call__(self) -> _ImageSliceResponse:
         with self.dask_indexer():
             return (
@@ -101,6 +105,7 @@ class _ImageSliceRequest:
             name='tile2data', linear_matrix=np.eye(ndim), ndim=ndim
         )
         return _ImageSliceResponse(
+            request=self,
             data=image,
             thumbnail=None,
             tile_to_data=tile_to_data,
@@ -157,6 +162,7 @@ class _ImageSliceRequest:
             thumbnail = np.asarray(thumbnail)
 
         return _ImageSliceResponse(
+            request=self,
             data=image,
             thumbnail=thumbnail,
             tile_to_data=tile_to_data,

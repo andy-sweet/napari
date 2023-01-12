@@ -42,6 +42,7 @@ class FakeAsyncLayer:
         self._slice_request_count: int = 0
         self.slice_count: int = 0
         self.lock: RLock = RLock()
+        self.visible = True
 
     def _make_slice_request(self, dims: Dims) -> FakeSliceRequest:
         assert current_thread() == main_thread()
@@ -58,6 +59,7 @@ class FakeAsyncLayer:
 class FakeSyncLayer:
     def __init__(self):
         self.slice_count: int = 0
+        self.visible = True
 
     def _slice_dims(self, *args, **kwargs) -> None:
         self.slice_count += 1
@@ -88,13 +90,14 @@ class LockableData:
         with self.lock:
             return self.data[key]
 
-    def __len__(self):
-        return len(self.data)
-
 
 @pytest.fixture()
 def layer_slicer():
     layer_slicer = _LayerSlicer()
+    # Initially, force_sync will be True to maintain the existing sync
+    # behavior, but these tests should exercise the case when async is
+    # allowed, so ensure it's False.
+    layer_slicer._force_sync = False
     yield layer_slicer
     layer_slicer.shutdown()
 
@@ -141,7 +144,7 @@ def test_submit_with_one_sync_layer(layer_slicer):
     future = layer_slicer.submit(layers=[layer], dims=Dims())
 
     assert layer.slice_count == 1
-    assert future is None
+    assert _wait_for_result(future) is None
 
 
 def test_submit_with_multiple_sync_layer(layer_slicer):
@@ -154,7 +157,7 @@ def test_submit_with_multiple_sync_layer(layer_slicer):
 
     assert layer1.slice_count == 1
     assert layer2.slice_count == 1
-    assert future is None
+    assert _wait_for_result(future) is None
 
 
 def test_submit_with_mixed_layers(layer_slicer):
@@ -165,9 +168,10 @@ def test_submit_with_mixed_layers(layer_slicer):
 
     future = layer_slicer.submit(layers=[layer1, layer2], dims=Dims())
 
+    result = _wait_for_result(future)
+    assert result[layer1].id == 1
+    assert layer2 not in result
     assert layer2.slice_count == 1
-    assert _wait_for_result(future)[layer1].id == 1
-    assert layer2 not in _wait_for_result(future)
 
 
 def test_submit_lock_blocking(layer_slicer):
@@ -197,7 +201,7 @@ def test_submit_multiple_calls_cancels_pending(layer_slicer):
     assert pending.cancelled()
 
 
-def test_submit_mixed_allows_sync_to_run(layer_slicer):
+def test_slice_layers_mixed_allows_sync_to_run(layer_slicer):
     """ensure that a blocked async slice doesn't block sync slicing"""
     dims = Dims()
     layer1 = FakeAsyncLayer()
@@ -211,7 +215,7 @@ def test_submit_mixed_allows_sync_to_run(layer_slicer):
     assert _wait_for_result(blocked)[layer1].id == 1
 
 
-def test_submit_mixed_allows_sync_to_run_one_slicer_call(layer_slicer):
+def test_slice_layers_mixed_allows_sync_to_run_one_slicer_call(layer_slicer):
     """ensure that a blocked async slice doesn't block sync slicing"""
     dims = Dims()
     layer1 = FakeAsyncLayer()
@@ -260,7 +264,7 @@ def test_submit_exception_main_thread(layer_slicer):
     thread immediately when the task is created."""
 
     class FakeAsyncLayerError(FakeAsyncLayer):
-        def _make_slice_request(self, dims) -> FakeSliceRequest:
+        def _make_slice_request(self, dims: Dims) -> FakeSliceRequest:
             raise RuntimeError('_make_slice_request')
 
     layer = FakeAsyncLayerError()
@@ -325,7 +329,7 @@ def test_force_sync_on_sync_layer(layer_slicer):
         future = layer_slicer.submit(layers=[layer], dims=Dims())
 
     assert layer.slice_count == 1
-    assert future is None
+    assert _wait_for_result(future) is None
     assert not layer_slicer._force_sync
 
 
@@ -337,7 +341,7 @@ def test_force_sync_on_async_layer(layer_slicer):
         future = layer_slicer.submit(layers=[layer], dims=Dims())
 
     assert layer.slice_count == 1
-    assert future is None
+    assert _wait_for_result(future) is None
 
 
 def test_submit_with_one_3d_image(layer_slicer):
