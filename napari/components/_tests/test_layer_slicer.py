@@ -167,6 +167,7 @@ def test_submit_emits_ready_event_when_done(layer_slicer):
     layer_slicer.events.ready.connect(on_done)
 
     future = layer_slicer.submit(layers=[layer], dims=Dims())
+    future = layer_slicer.submit(layers=[layer], dims=Dims())
     actual_result = _wait_for_result(future)
 
     assert actual_result is event_result

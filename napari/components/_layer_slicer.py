@@ -54,11 +54,13 @@ class _LayerSlicer:
     def force_sync(self):
         """Context manager to temporarily force slicing to be synchronous.
 
+
         This should only be used from the main thread.
 
         >>> layer_slicer = _LayerSlicer()
         >>> layer = Image(...)  # an async-ready layer
         >>> with layer_slice.force_sync():
+        >>>     layer_slicer.submit(layers=[layer], dims=Dims())
         >>>     layer_slicer.submit(layers=[layer], dims=Dims())
         """
         prev = self._force_sync
@@ -99,7 +101,12 @@ class _LayerSlicer:
         """Slices the given layers with the given dims.
 
         Submitting multiple layers at one generates multiple requests, but only ONE task.
+        Submitting multiple layers at one generates multiple requests, but only ONE task.
 
+        This will attempt to cancel all pending slicing tasks that can be entirely
+        replaced the new ones. If multiple layers are sliced, any task that contains
+        only one of those layers can safely be cancelled. If a single layer is sliced,
+        it will wait for any existing tasks that include that layer AND another layer,
         This will attempt to cancel all pending slicing tasks that can be entirely
         replaced the new ones. If multiple layers are sliced, any task that contains
         only one of those layers can safely be cancelled. If a single layer is sliced,
