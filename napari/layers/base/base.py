@@ -964,10 +964,13 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
     def _make_slice_request(
         self, dims: Dims, *, refresh_only: bool = False
     ) -> _LayerSliceRequest:
-        if refresh_only:
-            return _LayerSliceRequest(layer=self, dims=self._slice_input)
-        slice_input = self._make_slice_input(
-            dims.point, dims.ndisplay, dims.order
+        # TODO: consider always computing slice input since it should be cheap
+        # then using a force parameter, which when true always returns a request
+        # if they're the same.
+        slice_input = (
+            self._slice_input
+            if refresh_only
+            else self._make_slice_input(dims.point, dims.ndisplay, dims.order)
         )
         return _LayerSliceRequest(layer=self, dims=slice_input)
 

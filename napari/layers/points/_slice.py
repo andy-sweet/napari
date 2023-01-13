@@ -57,6 +57,7 @@ class _PointSliceRequest:
     size: Any = field(repr=False)
     out_of_slice_display: bool = field(repr=False)
 
+    @property
     def supports_async(self) -> bool:
         return True
 

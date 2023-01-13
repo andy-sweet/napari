@@ -83,6 +83,7 @@ class _ImageSliceRequest:
     downsample_factors: np.ndarray = field(repr=False)
     lazy: bool = field(default=False, repr=False)
 
+    @property
     def supports_async(self) -> bool:
         return True
 

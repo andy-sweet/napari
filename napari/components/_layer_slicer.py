@@ -132,8 +132,10 @@ class _LayerSlicer:
         async_requests = {}
         sync_requests = {}
         for layer in [layer for layer in layers if layer.visible]:
-            if request := layer._make_slice_request(dims, force):
-                if request.supports_async() and not self._force_sync:
+            if request := layer._make_slice_request(
+                dims, refresh_only=not force
+            ):
+                if request.supports_async and not self._force_sync:
                     async_requests[layer] = request
                 else:
                     sync_requests[layer] = request
@@ -142,7 +144,7 @@ class _LayerSlicer:
         async_task = None
         if len(async_requests) > 0:
             async_task = self._executor.submit(
-                self._slice_layers, async_requests
+                self._call_requests, async_requests
             )
             # Store the async task before adding the done callback to keep the
             # done callback logic simpler.
@@ -151,8 +153,8 @@ class _LayerSlicer:
             async_task.add_done_callback(self._on_slice_done)
 
         # Then execute the sync tasks to work concurrently with the async ones.
-        for request in sync_requests:
-            request()
+        if len(sync_requests) > 0:
+            self._call_requests(sync_requests)
 
         return async_task
 
@@ -169,21 +171,26 @@ class _LayerSlicer:
             task.cancel()
         self._executor.shutdown(wait=True)
 
-    def _slice_layers(self, requests: Dict) -> Dict:
-        """
-        Iterates through a dictionary of request objects and call the slice
-        on each individual layer. Can be called from the main or slicing thread.
+    def _call_requests(self, requests: Dict) -> Dict:
+        """Calls the layer slice requests and returns their corresponding responses.
+
+        Also emits the 'ready' event if and when slicing finishes successfully.
+
+        Can be called from the main or slicing thread.
 
         Attributes
         ----------
-        requests: dict[Layer, SliceRequest]
-            Dictionary of request objects to be used for constructing the slice
+        requests: Dict
+            Maps from a layer to a slice request.
 
         Returns
         -------
-        dict[Layer, SliceResponse]: which contains the results of the slice
+        Dict
+            Maps from a layer to a slice response.
         """
-        return {layer: request() for layer, request in requests.items()}
+        result = {layer: request() for layer, request in requests.items()}
+        self.events.ready(Event('ready', value=result))
+        return result
 
     def _on_slice_done(self, task: Future[Dict]) -> None:
         """
@@ -197,8 +204,6 @@ class _LayerSlicer:
         if task.cancelled():
             logger.debug('Cancelled task')
             return
-        result = task.result()
-        self.events.ready(Event('ready', value=result))
 
     def _try_to_remove_task(self, task: Future[Dict]) -> bool:
         """

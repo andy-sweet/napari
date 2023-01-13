@@ -1697,7 +1697,9 @@ class Points(Layer):
         response = request()
         self._update_slice_response(response)
 
-    def _make_slice_request(self, dims) -> _PointSliceRequest:
+    def _make_slice_request(
+        self, dims, *, refresh_only: bool = False
+    ) -> _PointSliceRequest:
         """Make a Points slice request based on the given dims and these data."""
         slice_input = self._make_slice_input(
             dims.point, dims.ndisplay, dims.order

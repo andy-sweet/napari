@@ -21,6 +21,7 @@ class _LayerSliceRequest:
     layer: Layer
     dims: _SliceInput
 
+    @property
     def supports_async(self) -> bool:
         return False
 
