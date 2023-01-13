@@ -105,6 +105,8 @@ class _LayerSlicer:
         replaced the new ones. If multiple layers are sliced, any task that contains
         only one of those layers can safely be cancelled. If a single layer is sliced,
         it will wait for any existing tasks that include that layer AND another layer,
+        In other words, it will only cancel if the new task will replace the
+        slices of all the layers in the pending task.
 
         This should only be called from the main thread.
 
