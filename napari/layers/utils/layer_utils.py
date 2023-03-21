@@ -890,6 +890,11 @@ def _get_default_column(column: pd.Series) -> pd.Series:
         choices = column.dtype.categories
         if choices.size > 0:
             value = choices[0]
+    # Series initializer with no data and int dtype will cause
+    # the dtype to become a float with a NaN as the data, so
+    # handle this special case.
+    if value is None and np.issubdtype(column.dtype, np.integer):
+        value = 0
     return pd.Series(data=value, dtype=column.dtype, index=range(1))
 
 
