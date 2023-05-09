@@ -715,6 +715,12 @@ class _ImageBase(IntensityVisualizationMixin, Layer):
         """
         return self._slice.loaded
 
+    def _set_loaded(self, loaded: bool) -> None:
+        """Override to handle old async."""
+        if self._slice.loaded != loaded:
+            self._slice.loaded = loaded
+            self.events.loaded()
+
     def _raw_to_displayed(self, raw):
         """Determine displayed image from raw image.
 

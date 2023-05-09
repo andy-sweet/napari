@@ -4,6 +4,7 @@ from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 
+from napari.layers.base._slice import _next_request_id
 from napari.layers.utils._slice_input import _SliceInput
 from napari.utils._dask_utils import DaskIndexer
 from napari.utils.transforms import Affine
@@ -32,6 +33,8 @@ class _ImageSliceResponse:
         Describes the slicing plane or bounding box in the layer's dimensions.
     indices : tuple of ints or slices
         The slice indices in the layer's data space.
+    request_id : int
+        The identifier of the request from which this was generated.
     """
 
     data: Any = field(repr=False)
@@ -39,6 +42,7 @@ class _ImageSliceResponse:
     tile_to_data: Affine = field(repr=False)
     dims: _SliceInput
     indices: Tuple[Union[int, slice], ...]
+    request_id: int
 
 
 @dataclass(frozen=True)
@@ -65,6 +69,8 @@ class _ImageSliceRequest:
         Otherwise, False. This should be True for the experimental async code
         (as the load occurs on a separate thread) but False for the new async
         where `execute` is expected to be run on a separate thread.
+    id : int
+        The identifier of this slice request.
     others
         See the corresponding attributes in `Layer` and `Image`.
     """
@@ -81,6 +87,7 @@ class _ImageSliceRequest:
     level_shapes: np.ndarray = field(repr=False)
     downsample_factors: np.ndarray = field(repr=False)
     lazy: bool = field(default=False, repr=False)
+    id: int = field(default_factory=_next_request_id)
 
     def __call__(self) -> _ImageSliceResponse:
         with self.dask_indexer():
@@ -106,6 +113,7 @@ class _ImageSliceRequest:
             tile_to_data=tile_to_data,
             dims=self.dims,
             indices=self.indices,
+            request_id=self.id,
         )
 
     def _call_multi_scale(self) -> _ImageSliceResponse:
@@ -162,6 +170,7 @@ class _ImageSliceRequest:
             tile_to_data=tile_to_data,
             dims=self.dims,
             indices=self.indices,
+            request_id=self.id,
         )
 
     def _slice_indices_at_level(

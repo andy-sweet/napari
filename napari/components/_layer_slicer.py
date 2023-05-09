@@ -40,6 +40,9 @@ class _AsyncSliceable(Protocol[_SliceResponse]):
     def _update_slice_response(self, response: _SliceResponse) -> None:
         ...
 
+    def _set_unloaded_slice_id(self, slice_id: int) -> None:
+        ...
+
 
 class _LayerSlicer:
     """
@@ -66,7 +69,7 @@ class _LayerSlicer:
             manager for the slicing threading
         _force_sync: bool
             if true, forces slicing to execute synchronously
-        _layers_to_task : dict
+        _layers_to_task : dict of tuples of layers to futures
             task storage for cancellation logic
         _lock_layers_to_task : threading.RLock
             lock to guard against changes to `_layers_to_task` when finding,
@@ -75,7 +78,7 @@ class _LayerSlicer:
         self.events = EmitterGroup(source=self, ready=Event)
         self._executor: Executor = ThreadPoolExecutor(max_workers=1)
         self._force_sync = True
-        self._layers_to_task: Dict[Tuple[Layer], Future] = {}
+        self._layers_to_task: Dict[Tuple[Layer, ...], Future] = {}
         self._lock_layers_to_task = RLock()
 
     @contextmanager
@@ -173,7 +176,9 @@ class _LayerSlicer:
         for layer in layers:
             if isinstance(layer, _AsyncSliceable) and not self._force_sync:
                 logger.debug('Making async slice request for %s', layer)
-                requests[layer] = layer._make_slice_request(dims)
+                request = layer._make_slice_request(dims)
+                requests[layer] = request
+                layer._set_unloaded_slice_id(request.id)
             else:
                 logger.debug('Sync slicing for %s', layer)
                 sync_layers.append(layer)
