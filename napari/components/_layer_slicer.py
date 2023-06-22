@@ -10,14 +10,10 @@ from concurrent.futures import Executor, Future, ThreadPoolExecutor, wait
 from contextlib import contextmanager
 from threading import RLock
 from typing import (
-    Callable,
     Dict,
     Iterable,
     Optional,
-    Protocol,
     Tuple,
-    TypeVar,
-    runtime_checkable,
 )
 
 from napari.components import Dims
@@ -26,51 +22,6 @@ from napari.settings import get_settings
 from napari.utils.events.event import EmitterGroup, Event
 
 logger = logging.getLogger("napari.components._layer_slicer")
-
-
-# Layers that can be asynchronously sliced must be able to make
-# a slice request that can be called and will produce a slice
-# response. The request and response types are coupled but will
-# vary per layer type, which means that the values of the dictionary
-# result of ``_slice_layers`` cannot be fixed to a single type.
-
-_SliceResponse = TypeVar('_SliceResponse')
-_SliceRequest = Callable[[], _SliceResponse]
-
-
-@runtime_checkable
-class _AsyncSliceable(Protocol[_SliceResponse]):
-    """The methods needed for async slicing to be supported on a layer.
-
-    These methods are private to avoid inflating the public API of
-    layers while async slicing is being developed.
-    """
-
-    def _make_slice_request(self, dims: Dims) -> _SliceRequest[_SliceResponse]:
-        """Makes a callable slice request that returns a response.
-
-        This method should run quickly, as it is expected to run on the main thread.
-        Slower parts of slicing should be moved into the callable request, which can
-        be run off the main thread.
-        The request should capture any state it needs from a layer to generate
-        the response and should not modify any of that state. In combination with
-        other design choices, this allows us to avoid using locks while slicing.
-        """
-
-    def _update_slice_response(self, response: _SliceResponse) -> None:
-        """Passes through a completed slice response.
-
-        This method should run on the main thread and is mostly needed to update
-        slice state on layers.
-        """
-
-    def _set_unloaded_slice_id(self, slice_id: int) -> None:
-        """Sets the ID associated with the latest slice request.
-
-        This is needed to support ``Layer.loaded`` in async slicing.
-        This could be done at the end of ``_make_slice_request``, but was separated
-        to avoid mutations in that method and to clarify responsibilities.
-        """
 
 
 class _LayerSlicer:
@@ -200,36 +151,33 @@ class _LayerSlicer:
         # The following logic gives us a way to handle those in the short
         # term as we develop, and also in the long term if there are cases
         # when we want to perform sync slicing anyway.
-        requests = {}
-        sync_layers = []
-        for layer in layers:
-            if isinstance(layer, _AsyncSliceable) and not self._force_sync:
-                logger.debug('Making async slice request for %s', layer)
-                request = layer._make_slice_request(dims)
-                requests[layer] = request
+        async_requests = {}
+        sync_requests = {}
+        for layer in [layer for layer in layers if layer.visible]:
+            request = layer._make_slice_request(dims)
+            if request.supports_async and not self._force_sync:
+                async_requests[layer] = request
                 layer._set_unloaded_slice_id(request.id)
             else:
-                logger.debug('Sync slicing for %s', layer)
-                sync_layers.append(layer)
+                sync_requests[layer] = request
 
         # First maybe submit an async slicing task to start it ASAP.
-        task = None
-        if len(requests) > 0:
-            logger.debug('Submitting task %s', id(task))
-            task = self._executor.submit(self._slice_layers, requests)
+        async_task = None
+        if len(async_requests) > 0:
+            async_task = self._executor.submit(
+                self._slice_layers, async_requests
+            )
             # Store task before adding done callback to ensure there is always
             # a task to remove in the done callback.
             with self._lock_layers_to_task:
-                self._layers_to_task[tuple(requests)] = task
-            task.add_done_callback(self._on_slice_done)
+                self._layers_to_task[tuple(async_requests)] = async_task
+            async_task.add_done_callback(self._on_slice_done)
 
-        # Then execute sync slicing tasks to run concurrent with async ones.
-        for layer in sync_layers:
-            layer._slice_dims(
-                dims.point, dims.ndisplay, dims.order, force=force
-            )
+        # Then execute the sync tasks to work concurrently with the async ones.
+        if len(sync_requests) > 0:
+            self._slice_layers(sync_requests)
 
-        return task
+        return async_task
 
     def shutdown(self) -> None:
         """Shuts this down, preventing any new slice tasks from being submitted.

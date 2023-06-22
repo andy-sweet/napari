@@ -62,6 +62,10 @@ class _PointSliceRequest:
     out_of_slice_display: bool = field(repr=False)
     id: int = field(default_factory=_next_request_id)
 
+    @property
+    def supports_async(self) -> bool:
+        return True
+
     def __call__(self) -> _PointSliceResponse:
         # Return early if no data
         if len(self.data) == 0:

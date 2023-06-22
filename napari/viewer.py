@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 from weakref import WeakSet
 
 import magicgui as mgui
+from superqt import ensure_main_thread
 
 from napari.components.viewer_model import ViewerModel
 from napari.utils import _magicgui
@@ -171,6 +172,15 @@ class Viewer(ViewerModel):
         for viewer in viewers:
             viewer.close()
         return ret
+
+    @ensure_main_thread
+    def _on_slice_ready(self, event):
+        """Callback connected to `viewer._layer_slicer.events.ready`.
+
+        Provides updates after slicing using the slice response data.
+        This only gets triggered on the async slicing path.
+        """
+        super()._on_slice_ready(event)
 
 
 def current_viewer() -> Optional[Viewer]:

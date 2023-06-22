@@ -12,7 +12,6 @@ from weakref import WeakSet, ref
 from qtpy.QtCore import QCoreApplication, QObject, Qt
 from qtpy.QtGui import QGuiApplication
 from qtpy.QtWidgets import QFileDialog, QSplitter, QVBoxLayout, QWidget
-from superqt import ensure_main_thread
 
 from napari._qt.containers import QtLayerList
 from napari._qt.dialogs.qt_reader_dialog import handle_gui_reading
@@ -218,8 +217,6 @@ class QtViewer(QSplitter):
 
         self.setOrientation(Qt.Orientation.Vertical)
         self.addWidget(main_widget)
-
-        self.viewer._layer_slicer.events.ready.connect(self._on_slice_ready)
 
         self._on_active_change()
         self.viewer.layers.events.inserted.connect(self._update_welcome_screen)
@@ -574,29 +571,6 @@ class QtViewer(QSplitter):
         if console is not None:
             self.dockConsole.setWidget(console)
             console.setParent(self.dockConsole)
-
-    @ensure_main_thread
-    def _on_slice_ready(self, event):
-        """Callback connected to `viewer._layer_slicer.events.ready`.
-
-        Provides updates after slicing using the slice response data.
-        This only gets triggered on the async slicing path.
-        """
-        responses = event.value
-        logging.debug('QtViewer._on_slice_ready: %s', responses)
-        for layer, response in responses.items():
-            # Update the layer slice state to temporarily support behavior
-            # that depends on it.
-            layer._update_slice_response(response)
-            # The rest of `Layer.refresh` after `set_view_slice`, where
-            # `set_data` notifies the corresponding vispy layer of the new
-            # slice.
-            layer.events.set_data()
-            layer._update_thumbnail()
-            layer._set_highlight(force=True)
-            # Update the layer's loaded state after everything else, so
-            # that a user can rely on the rendered state being updated.
-            layer._update_loaded_slice_id(response.request_id)
 
     def _on_active_change(self):
         """When active layer changes change keymap handler."""

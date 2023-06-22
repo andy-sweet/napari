@@ -174,6 +174,10 @@ class _ImageSliceRequest:
     downsample_factors: np.ndarray = field(repr=False)
     id: int = field(default_factory=_next_request_id)
 
+    @property
+    def supports_async(self) -> bool:
+        return True
+
     def __call__(self) -> _ImageSliceResponse:
         with self.dask_indexer():
             return (
@@ -184,7 +188,8 @@ class _ImageSliceRequest:
 
     def _call_single_scale(self) -> _ImageSliceResponse:
         order = self._get_order()
-        data = np.asarray(self.data[self.indices])
+        data = self.data[self.indices]
+        data = np.asarray(data)
         data = np.transpose(data, order)
         image = _ImageView.from_view(data)
         # `Layer.multiscale` is mutable so we need to pass back the identity
