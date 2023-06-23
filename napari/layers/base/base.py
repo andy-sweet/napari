@@ -1140,14 +1140,15 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             order,
             force,
         )
-        slice_input = self._make_slice_input(point, ndisplay, order)
-        if force or (self._slice_input != slice_input):
+        if slice_input := self._make_slice_input(
+            point, ndisplay, order, force=force
+        ):
             self._slice_input = slice_input
             self.refresh()
 
     def _make_slice_input(
-        self, point=None, ndisplay=2, order=None
-    ) -> _SliceInput:
+        self, point=None, ndisplay=2, order=None, *, force: bool = False
+    ) -> Optional[_SliceInput]:
         point = (0,) * self.ndim if point is None else tuple(point)
 
         ndim = len(point)
@@ -1162,17 +1163,26 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             self._world_to_layer_dims(world_dims=order, ndim_world=ndim)
         )
 
-        return _SliceInput(
+        slice_input = _SliceInput(
             ndisplay=ndisplay,
             point=point,
             order=order,
         )
+        if force or (slice_input != self._slice_input):
+            return slice_input
+        return None
 
-    def _make_slice_request(self, dims: Dims) -> _SliceRequest:
-        slice_input = self._make_slice_input(
-            dims.point, dims.ndisplay, dims.order
-        )
-        return _LayerSliceRequest(layer=self, dims=slice_input)
+    def _make_slice_request(
+        self, dims: Dims, *, force: bool = True
+    ) -> Optional[_SliceRequest]:
+        if slice_input := self._make_slice_input(
+            dims.point,
+            dims.ndisplay,
+            dims.order,
+            force=force,
+        ):
+            return _LayerSliceRequest(layer=self, dims=slice_input)
+        return None
 
     def _update_slice_response(self, response: _SliceResponse) -> None:
         self._slice_input = response.dims

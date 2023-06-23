@@ -106,7 +106,7 @@ class _LayerSlicer:
         *,
         layers: Iterable[Layer],
         dims: Dims,
-        force: bool = False,
+        force: bool = True,
     ) -> Optional[Future[dict]]:
         """Slices the given layers with the given dims.
 
@@ -154,12 +154,12 @@ class _LayerSlicer:
         async_requests = {}
         sync_requests = {}
         for layer in [layer for layer in layers if layer.visible]:
-            request = layer._make_slice_request(dims)
-            if request.supports_async and not self._force_sync:
-                async_requests[layer] = request
-                layer._set_unloaded_slice_id(request.id)
-            else:
-                sync_requests[layer] = request
+            if request := layer._make_slice_request(dims, force=force):
+                if request.supports_async and not self._force_sync:
+                    async_requests[layer] = request
+                    layer._set_unloaded_slice_id(request.id)
+                else:
+                    sync_requests[layer] = request
 
         # First maybe submit an async slicing task to start it ASAP.
         async_task = None

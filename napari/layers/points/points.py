@@ -1,8 +1,19 @@
+from __future__ import annotations
+
 import numbers
 import warnings
 from copy import copy, deepcopy
 from itertools import cycle
-from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+)
 
 import numpy as np
 import pandas as pd
@@ -46,6 +57,10 @@ from napari.utils.geometry import project_points_onto_plane, rotate_points
 from napari.utils.status_messages import generate_layer_coords_status
 from napari.utils.transforms import Affine
 from napari.utils.translations import trans
+
+if TYPE_CHECKING:
+    from napari.components import Dims
+
 
 DEFAULT_COLOR_CYCLE = np.array([[1, 0, 1, 1], [0, 1, 0, 1]])
 
@@ -1735,17 +1750,25 @@ class Points(Layer):
         response = request()
         self._update_slice_response(response)
 
-    def _make_slice_request(self, dims) -> _PointSliceRequest:
+    def _make_slice_request(
+        self, dims: Dims, *, force: bool = True
+    ) -> Optional[_PointSliceRequest]:
         """Make a Points slice request based on the given dims and these data."""
-        slice_input = self._make_slice_input(
-            dims.point, dims.ndisplay, dims.order
-        )
-        # See Image._make_slice_request to understand why we evaluate this here
-        # instead of using `self._slice_indices`.
-        slice_indices = slice_input.data_indices(
-            self._data_to_world.inverse, round_index=False
-        )
-        return self._make_slice_request_internal(slice_input, slice_indices)
+        if slice_input := self._make_slice_input(
+            dims.point,
+            dims.ndisplay,
+            dims.order,
+            force=force,
+        ):
+            # See Image._make_slice_request to understand why we evaluate this here
+            # instead of using `self._slice_indices`.
+            slice_indices = slice_input.data_indices(
+                self._data_to_world.inverse, round_index=False
+            )
+            return self._make_slice_request_internal(
+                slice_input, slice_indices
+            )
+        return None
 
     def _make_slice_request_internal(
         self, slice_input: _SliceInput, dims_indices

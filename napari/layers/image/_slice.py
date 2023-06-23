@@ -121,6 +121,8 @@ class _ImageSliceResponse:
         self, converter: Callable[[np.ndarray], np.ndarray]
     ) -> '_ImageSliceResponse':
         """Returns a raw slice converted for display, which is needed for Labels."""
+        if self.empty:
+            return self
         image = _ImageView.from_raw(raw=self.image.raw, converter=converter)
         thumbnail = image
         if self.thumbnail is not self.image:
@@ -179,6 +181,15 @@ class _ImageSliceRequest:
         return True
 
     def __call__(self) -> _ImageSliceResponse:
+        # Skip if any non-displayed data indices are out of bounds.
+        # This can happen when slicing layers with different extents.
+        for d in self.dims.not_displayed:
+            extent = self.level_shapes[0][d]
+            if not (0 <= self.indices[d] < extent):
+                return _ImageSliceResponse.make_empty(
+                    dims=self.dims, rgb=self.rgb
+                )
+
         with self.dask_indexer():
             return (
                 self._call_multi_scale()

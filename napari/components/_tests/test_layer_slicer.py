@@ -200,7 +200,7 @@ def test_submit_exception_main_thread(layer_slicer):
     thread immediately when the task is created."""
 
     class ErrorOnRequest(Image):
-        def _make_slice_request(self, dims: Dims) -> _SliceRequest:
+        def _make_slice_request(self, *args, **kwargs) -> _SliceRequest:
             raise RuntimeError('_make_slice_request')
 
     layer = ErrorOnRequest(np.zeros((3, 2)))
@@ -224,7 +224,7 @@ def test_submit_exception_subthread_on_result(layer_slicer):
             raise RuntimeError('FakeSliceRequestError')
 
     class ErrorOnSlice(Image):
-        def _make_slice_request(self, dims: Dims) -> ErroringSliceRequest:
+        def _make_slice_request(self, *args, **kwargs) -> ErroringSliceRequest:
             return ErroringSliceRequest(id=0)
 
     layer = ErrorOnSlice(np.zeros((3, 2)))
