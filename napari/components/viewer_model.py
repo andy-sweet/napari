@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import itertools
+import logging
 import os
 import warnings
 from functools import lru_cache
@@ -266,6 +267,8 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         self.layers.events.reordered.connect(self._on_layers_change)
         self.layers.selection.events.active.connect(self._on_active_layer)
 
+        self._layer_slicer.events.ready.connect(self._on_slice_ready)
+
         # Add mouse callback
         self.mouse_wheel_callbacks.append(dims_scroll)
 
@@ -410,7 +413,9 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
 
     def _on_layer_reload(self, event: Event) -> None:
         self._layer_slicer.submit(
-            layers=[event.layer], dims=self.dims, force=True
+            layers=[event.layer],
+            dims=self.dims,
+            force=True,
         )
 
     def _update_layers(self, *, layers=None):
@@ -422,7 +427,7 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
             List of layers to update. If none provided updates all.
         """
         layers = layers or self.layers
-        self._layer_slicer.submit(layers=layers, dims=self.dims)
+        self._layer_slicer.submit(layers=layers, dims=self.dims, force=False)
         # If the currently selected layer is sliced asynchronously, then the value
         # shown with this position may be incorrect. See the discussion for more details:
         # https://github.com/napari/napari/pull/5377#discussion_r1036280855
@@ -430,6 +435,28 @@ class ViewerModel(KeymapProvider, MousemapProvider, EventedModel):
         for ind in self.dims.order[: -self.dims.ndisplay]:
             position[ind] = self.dims.point[ind]
         self.cursor.position = position
+
+    def _on_slice_ready(self, event):
+        """Callback connected to `viewer._layer_slicer.events.ready`.
+
+        Provides updates after slicing using the slice response data.
+        This only gets triggered on the async slicing path.
+        """
+        responses = event.value
+        logging.debug('ViewerModel._on_slice_ready: %s', responses)
+        for layer, response in responses.items():
+            # Update the layer slice state to temporarily support behavior
+            # that depends on it.
+            layer._update_slice_response(response)
+            # The rest of `Layer.refresh` after `set_view_slice`, where
+            # `set_data` notifies the corresponding vispy layer of the new
+            # slice.
+            layer.events.set_data()
+            layer._update_thumbnail()
+            layer._set_highlight(force=True)
+            # Update the layer's loaded state after everything else, so
+            # that a user can rely on the rendered state being updated.
+            layer._update_loaded_slice_id(response.request_id)
 
     def _on_active_layer(self, event):
         """Update viewer state for a new active layer."""

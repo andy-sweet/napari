@@ -8,7 +8,16 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
 from functools import cached_property
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Callable,
+    Dict,
+    List,
+    Optional,
+    Tuple,
+    Type,
+    Union,
+)
 
 import magicgui as mgui
 import numpy as np
@@ -18,6 +27,11 @@ from napari.layers.base._base_constants import Blending, Mode
 from napari.layers.base._base_mouse_bindings import (
     highlight_box_handles,
     transform_with_box,
+)
+from napari.layers.base._slice import (
+    _LayerSliceRequest,
+    _SliceRequest,
+    _SliceResponse,
 )
 from napari.layers.utils._slice_input import _SliceInput
 from napari.layers.utils.interactivity_utils import (
@@ -32,6 +46,7 @@ from napari.layers.utils.layer_utils import (
     get_extent_world,
 )
 from napari.layers.utils.plane import ClippingPlane, ClippingPlaneList
+from napari.settings import get_settings
 from napari.utils._dask_utils import configure_dask
 from napari.utils._magicgui import (
     add_layer_to_viewer,
@@ -51,6 +66,9 @@ from napari.utils.naming import magic_name
 from napari.utils.status_messages import generate_layer_coords_status
 from napari.utils.transforms import Affine, CompositeAffine, TransformChain
 from napari.utils.translations import trans
+
+if TYPE_CHECKING:
+    from napari.components import Dims
 
 logger = logging.getLogger("napari.layers.base.base")
 
@@ -1122,14 +1140,15 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             order,
             force,
         )
-        slice_input = self._make_slice_input(point, ndisplay, order)
-        if force or (self._slice_input != slice_input):
+        if slice_input := self._make_slice_input(
+            point, ndisplay, order, force=force
+        ):
             self._slice_input = slice_input
             self.refresh()
 
     def _make_slice_input(
-        self, point=None, ndisplay=2, order=None
-    ) -> _SliceInput:
+        self, point=None, ndisplay=2, order=None, *, force: bool = False
+    ) -> Optional[_SliceInput]:
         point = (0,) * self.ndim if point is None else tuple(point)
 
         ndim = len(point)
@@ -1144,11 +1163,29 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             self._world_to_layer_dims(world_dims=order, ndim_world=ndim)
         )
 
-        return _SliceInput(
+        slice_input = _SliceInput(
             ndisplay=ndisplay,
             point=point,
             order=order,
         )
+        if force or (slice_input != self._slice_input):
+            return slice_input
+        return None
+
+    def _make_slice_request(
+        self, dims: Dims, *, force: bool = True
+    ) -> Optional[_SliceRequest]:
+        if slice_input := self._make_slice_input(
+            dims.point,
+            dims.ndisplay,
+            dims.order,
+            force=force,
+        ):
+            return _LayerSliceRequest(layer=self, dims=slice_input)
+        return None
+
+    def _update_slice_response(self, response: _SliceResponse) -> None:
+        self._slice_input = response.dims
 
     @abstractmethod
     def _update_thumbnail(self):
@@ -1335,6 +1372,11 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
     def refresh(self, event=None):
         """Refresh all layer data based on current view slice."""
         logger.debug('Layer.refresh: %s', self)
+        # If async is enabled then emit an event that the viewer should handle.
+        if get_settings().experimental.async_:
+            self.events.reload(layer=self)
+            return
+        # Otherwise, slice immediately.
         if self.visible:
             self.set_view_slice()
             self.events.set_data()
@@ -1745,7 +1787,7 @@ class Layer(KeymapProvider, MousemapProvider, ABC):
             ):
                 self._data_level = level
                 self.corner_pixels = corners
-                self.events.reload(Event('reload', layer=self))
+                self.refresh()
         else:
             # The stored corner_pixels attribute must contain valid indices.
             corners = np.zeros((2, self.ndim), dtype=int)

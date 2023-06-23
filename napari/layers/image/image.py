@@ -5,7 +5,7 @@ from __future__ import annotations
 import types
 import warnings
 from contextlib import nullcontext
-from typing import TYPE_CHECKING, List, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 from scipy import ndimage as ndi
@@ -707,44 +707,40 @@ class _ImageBase(IntensityVisualizationMixin, Layer):
 
     def _set_view_slice(self) -> None:
         """Set the slice output based on this layer's current state."""
-        # Skip if any non-displayed data indices are out of bounds.
-        # This can happen when slicing layers with different extents.
-        indices = self._slice_indices
-        for d in self._slice_input.not_displayed:
-            if (indices[d] < 0) or (indices[d] > self._extent_data[1][d]):
-                self._slice = _ImageSliceResponse.make_empty(
-                    dims=self._slice_input, rgb=self.rgb
-                )
-                return
-
         # The new slicing code makes a request from the existing state and
         # executes the request on the calling thread directly.
         # For async slicing, the calling thread will not be the main thread.
         request = self._make_slice_request_internal(
             slice_input=self._slice_input,
-            indices=indices,
+            indices=self._slice_indices,
             dask_indexer=nullcontext,
         )
         response = request()
         self._update_slice_response(response)
 
-    def _make_slice_request(self, dims: Dims) -> _ImageSliceRequest:
+    def _make_slice_request(
+        self, dims: Dims, *, force: bool = True
+    ) -> Optional[_ImageSliceRequest]:
         """Make an image slice request based on the given dims and this image."""
-        slice_input = self._make_slice_input(
-            dims.point, dims.ndisplay, dims.order
-        )
-        # For the existing sync slicing, indices is passed through
-        # to avoid some performance issues related to the evaluation of the
-        # data-to-world transform and its inverse. Async slicing currently
-        # absorbs these performance issues here, but we can likely improve
-        # things either by caching the world-to-data transform on the layer
-        # or by lazily evaluating it in the slice task itself.
-        indices = slice_input.data_indices(self._data_to_world.inverse)
-        return self._make_slice_request_internal(
-            slice_input=slice_input,
-            indices=indices,
-            dask_indexer=self.dask_optimized_slicing,
-        )
+        if slice_input := self._make_slice_input(
+            dims.point,
+            dims.ndisplay,
+            dims.order,
+            force=force,
+        ):
+            # For the existing sync slicing, indices is passed through
+            # to avoid some performance issues related to the evaluation of the
+            # data-to-world transform and its inverse. Async slicing currently
+            # absorbs these performance issues here, but we can likely improve
+            # things either by caching the world-to-data transform on the layer
+            # or by lazily evaluating it in the slice task itself.
+            indices = slice_input.data_indices(self._data_to_world.inverse)
+            return self._make_slice_request_internal(
+                slice_input=slice_input,
+                indices=indices,
+                dask_indexer=self.dask_optimized_slicing,
+            )
+        return None
 
     def _make_slice_request_internal(
         self,

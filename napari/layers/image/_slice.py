@@ -121,6 +121,8 @@ class _ImageSliceResponse:
         self, converter: Callable[[np.ndarray], np.ndarray]
     ) -> '_ImageSliceResponse':
         """Returns a raw slice converted for display, which is needed for Labels."""
+        if self.empty:
+            return self
         image = _ImageView.from_raw(raw=self.image.raw, converter=converter)
         thumbnail = image
         if self.thumbnail is not self.image:
@@ -174,7 +176,20 @@ class _ImageSliceRequest:
     downsample_factors: np.ndarray = field(repr=False)
     id: int = field(default_factory=_next_request_id)
 
+    @property
+    def supports_async(self) -> bool:
+        return True
+
     def __call__(self) -> _ImageSliceResponse:
+        # Skip if any non-displayed data indices are out of bounds.
+        # This can happen when slicing layers with different extents.
+        for d in self.dims.not_displayed:
+            extent = self.level_shapes[0][d]
+            if not (0 <= self.indices[d] < extent):
+                return _ImageSliceResponse.make_empty(
+                    dims=self.dims, rgb=self.rgb
+                )
+
         with self.dask_indexer():
             return (
                 self._call_multi_scale()
@@ -184,7 +199,8 @@ class _ImageSliceRequest:
 
     def _call_single_scale(self) -> _ImageSliceResponse:
         order = self._get_order()
-        data = np.asarray(self.data[self.indices])
+        data = self.data[self.indices]
+        data = np.asarray(data)
         data = np.transpose(data, order)
         image = _ImageView.from_view(data)
         # `Layer.multiscale` is mutable so we need to pass back the identity
