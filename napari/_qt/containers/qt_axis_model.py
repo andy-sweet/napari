@@ -16,12 +16,14 @@ class AxisModel:
         self.dims = dims
         self.axis = axis
 
+    @property
     def rollable(self) -> bool:
         return self.dims.rollable[self.axis]
 
-    def set_rollable(self, r: bool) -> None:
+    @rollable.setter
+    def rollable(self, value: bool) -> None:
         rollable = list(self.dims.rollable)
-        rollable[self.axis] = r
+        rollable[self.axis] = value
         self.dims.rollable = rollable
 
     def __hash__(self) -> int:
@@ -60,7 +62,7 @@ class QtAxisListModel(QtListModel[AxisModel]):
         if role == Qt.ItemDataRole.CheckStateRole:
             return (
                 Qt.CheckState.Checked
-                if axis.rollable()
+                if axis.rollable
                 else Qt.CheckState.Unchecked
             )
         return super().data(index, role)
@@ -73,7 +75,11 @@ class QtAxisListModel(QtListModel[AxisModel]):
     ) -> bool:
         axis = self.getItem(index)
         if role == Qt.ItemDataRole.CheckStateRole:
-            axis.set_rollable(Qt.CheckState(value) == Qt.CheckState.Checked)
+            axis.rollable = Qt.CheckState(value) == Qt.CheckState.Checked
+        elif role == Qt.ItemDataRole.EditRole:
+            axis_labels = list(axis.dims.axis_labels)
+            axis_labels[axis.axis] = value
+            axis.dims.axis_labels = axis_labels
         else:
             return super().setData(index, value, role=role)
         self.dataChanged.emit(index, index, [role])
@@ -103,6 +109,6 @@ class QtAxisListModel(QtListModel[AxisModel]):
                 # we allow drops outside the items
                 return Qt.ItemFlag.ItemIsDropEnabled
             
-            if self.getItem(index).rollable():
+            if self.getItem(index).rollable:
                 return flags | Qt.ItemFlag.ItemIsDragEnabled
             return flags & ~Qt.ItemFlag.ItemIsDragEnabled
