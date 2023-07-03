@@ -1,6 +1,8 @@
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Optional, Union
+from napari.utils.events.containers import SelectableEventedList
 
-from qtpy.QtCore import QModelIndex, Qt
+from qtpy.QtCore import QModelIndex, Qt, QSignalBlocker
+from qtpy.QtWidgets import QWidget
 
 from napari._qt.containers.qt_list_model import QtListModel
 from napari.components import Dims
@@ -76,3 +78,31 @@ class QtAxisListModel(QtListModel[AxisModel]):
             return super().setData(index, value, role=role)
         self.dataChanged.emit(index, index, [role])
         return True
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+            """Returns the item flags for the given `index`.
+
+            This describes the properties of a given item in the model.  We set
+            them to be editable, checkable, dragable, droppable, etc...
+            If index is not a list, we additionally set `Qt.ItemNeverHasChildren`
+            (for optimization). Editable models must return a value containing
+            `Qt.ItemIsEditable`.
+
+            See Qt.ItemFlags https://doc.qt.io/qt-5/qt.html#ItemFlag-enum
+            """
+            flags = (
+                Qt.ItemFlag.ItemIsSelectable
+                | Qt.ItemFlag.ItemIsEditable
+                | Qt.ItemFlag.ItemIsUserCheckable
+                | Qt.ItemFlag.ItemIsTristate
+                | Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemNeverHasChildren
+            )
+            
+            if not index.isValid():
+                # we allow drops outside the items
+                return Qt.ItemFlag.ItemIsDropEnabled
+            
+            if self.getItem(index).rollable():
+                return flags | Qt.ItemFlag.ItemIsDragEnabled
+            return flags & ~Qt.ItemFlag.ItemIsDragEnabled
