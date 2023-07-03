@@ -67,7 +67,7 @@ class QtDimsSorter(QWidget):
 
         widget_tooltip = QtToolTipLabel(self)
         widget_tooltip.setObjectName('help_label')
-        widget_tooltip.setToolTip(trans._('Drag dimensions to reorder.'))
+        widget_tooltip.setToolTip(trans._('Drag dimensions to reorder, uncheck to lock dimension in place.'))
 
         widget_title = QLabel(trans._('Dims. Ordering'), self)
 
