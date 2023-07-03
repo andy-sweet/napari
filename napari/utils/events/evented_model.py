@@ -311,8 +311,12 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             for dep in dep_with_callbacks:
                 before_deps[dep] = getattr(self, dep, object())
 
-        # set value using original setter
-        self._super_setattr_(name, value)
+        # Block any nested emission of the corresponding event
+        # which can happen with dependent properties:
+        # https://github.com/napari/napari/issues/6032
+        with emitter.blocker():
+            # set value using original setter
+            self._super_setattr_(name, value)
 
         # if different we emit the event with new value
         after = getattr(self, name)
