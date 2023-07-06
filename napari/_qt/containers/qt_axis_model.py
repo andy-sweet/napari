@@ -16,16 +16,6 @@ class AxisModel:
         self.dims = dims
         self.axis = axis
 
-    @property
-    def rollable(self) -> bool:
-        return self.dims.rollable[self.axis]
-
-    @rollable.setter
-    def rollable(self, value: bool) -> None:
-        rollable = list(self.dims.rollable)
-        rollable[self.axis] = value
-        self.dims.rollable = rollable
-
     def __hash__(self) -> int:
         return id(self)
 
@@ -39,6 +29,16 @@ class AxisModel:
         if isinstance(other, int):
             return self.axis == other
         return repr(self) == other
+
+    @property
+    def rollable(self) -> bool:
+        return self.dims.rollable[self.axis]
+
+    @rollable.setter
+    def rollable(self, value: bool) -> None:
+        rollable = list(self.dims.rollable)
+        rollable[self.axis] = value
+        self.dims.rollable = rollable
 
 
 class AxisList(SelectableEventedList[AxisModel]):
@@ -110,5 +110,6 @@ class QtAxisListModel(QtListModel[AxisModel]):
                 return Qt.ItemFlag.ItemIsDropEnabled
             
             if self.getItem(index).rollable:
+                # we only allow dragging if the item is rollable
                 return flags | Qt.ItemFlag.ItemIsDragEnabled
             return flags & ~Qt.ItemFlag.ItemIsDragEnabled
