@@ -1,6 +1,8 @@
-from typing import Any, Iterable, Union
+from typing import Any, Iterable, Optional, Union
+from napari.utils.events.containers import SelectableEventedList
 
-from qtpy.QtCore import QModelIndex, Qt
+from qtpy.QtCore import QModelIndex, Qt, QSignalBlocker
+from qtpy.QtWidgets import QWidget
 
 from napari._qt.containers.qt_list_model import QtListModel
 from napari.components import Dims
@@ -13,14 +15,6 @@ class AxisModel:
     def __init__(self, dims: Dims, axis: int) -> None:
         self.dims = dims
         self.axis = axis
-
-    def rollable(self) -> bool:
-        return self.dims.rollable[self.axis]
-
-    def set_rollable(self, r: bool) -> None:
-        rollable = list(self.dims.rollable)
-        rollable[self.axis] = r
-        self.dims.rollable = rollable
 
     def __hash__(self) -> int:
         return id(self)
@@ -35,6 +29,16 @@ class AxisModel:
         if isinstance(other, int):
             return self.axis == other
         return repr(self) == other
+
+    @property
+    def rollable(self) -> bool:
+        return self.dims.rollable[self.axis]
+
+    @rollable.setter
+    def rollable(self, value: bool) -> None:
+        rollable = list(self.dims.rollable)
+        rollable[self.axis] = value
+        self.dims.rollable = rollable
 
 
 class AxisList(SelectableEventedList[AxisModel]):
@@ -58,7 +62,7 @@ class QtAxisListModel(QtListModel[AxisModel]):
         if role == Qt.ItemDataRole.CheckStateRole:
             return (
                 Qt.CheckState.Checked
-                if axis.rollable()
+                if axis.rollable
                 else Qt.CheckState.Unchecked
             )
         return super().data(index, role)
@@ -71,8 +75,41 @@ class QtAxisListModel(QtListModel[AxisModel]):
     ) -> bool:
         axis = self.getItem(index)
         if role == Qt.ItemDataRole.CheckStateRole:
-            axis.set_rollable(Qt.CheckState(value) == Qt.CheckState.Checked)
+            axis.rollable = Qt.CheckState(value) == Qt.CheckState.Checked
+        elif role == Qt.ItemDataRole.EditRole:
+            axis_labels = list(axis.dims.axis_labels)
+            axis_labels[axis.axis] = value
+            axis.dims.axis_labels = axis_labels
         else:
             return super().setData(index, value, role=role)
         self.dataChanged.emit(index, index, [role])
         return True
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlags:
+            """Returns the item flags for the given `index`.
+
+            This describes the properties of a given item in the model.  We set
+            them to be editable, checkable, dragable, droppable, etc...
+            If index is not a list, we additionally set `Qt.ItemNeverHasChildren`
+            (for optimization). Editable models must return a value containing
+            `Qt.ItemIsEditable`.
+
+            See Qt.ItemFlags https://doc.qt.io/qt-5/qt.html#ItemFlag-enum
+            """
+            flags = (
+                Qt.ItemFlag.ItemIsSelectable
+                | Qt.ItemFlag.ItemIsEditable
+                | Qt.ItemFlag.ItemIsUserCheckable
+                | Qt.ItemFlag.ItemIsTristate
+                | Qt.ItemFlag.ItemIsEnabled
+                | Qt.ItemFlag.ItemNeverHasChildren
+            )
+            
+            if not index.isValid():
+                # we allow drops outside the items
+                return Qt.ItemFlag.ItemIsDropEnabled
+            
+            if self.getItem(index).rollable:
+                # we only allow dragging if the item is rollable
+                return flags | Qt.ItemFlag.ItemIsDragEnabled
+            return flags & ~Qt.ItemFlag.ItemIsDragEnabled

@@ -86,6 +86,8 @@ class Dims(EventedModel):
     displayed_order : tuple of int
         Order of only displayed dimensions. These are calculated from the
         ``displayed`` dimensions.
+    rollable :  tuple of int
+        Tuple of axis roll state. If True the axis is rollable.
     """
 
     # fields
@@ -220,6 +222,7 @@ class Dims(EventedModel):
         elif labels_ndim > ndim:
             updated['axis_labels'] = axis_labels[-ndim:]
 
+        # Check the rollable axes tuple has same number of elements as ndim
         rollable = values['rollable']
         n_rollable = len(rollable)
         if n_rollable < ndim:

@@ -46,31 +46,33 @@ class QtDimsSorter(QWidget):
     Modified from:
     https://github.com/jni/zarpaint/blob/main/zarpaint/_dims_chooser.py
     """
-
     def __init__(self, viewer: 'Viewer', parent=None) -> None:
         super().__init__(parent=parent)
         dims = viewer.dims
-        root = AxisList.from_dims(dims)
-        root.events.reordered.connect(
-            lambda event: set_dims_order(dims, event.value)
-        )
-        dims.events.order.connect(
-            lambda event: move_indices(root, event.value)
-        )
-        view = QtListView(root)
-        view.setSizeAdjustPolicy(QtListView.AdjustToContents)
+        self.axis_list = AxisList.from_dims(dims)
 
-        self.axes_list = root
+        view = QtListView(self.axis_list)
+        view.setSizeAdjustPolicy(QtListView.AdjustToContents)
 
         layout = QGridLayout()
         self.setLayout(layout)
 
         widget_tooltip = QtToolTipLabel(self)
         widget_tooltip.setObjectName('help_label')
-        widget_tooltip.setToolTip(trans._('Drag dimensions to reorder.'))
+        widget_tooltip.setToolTip(trans._('Drag dimensions to reorder, uncheck to lock dimension in place.'))
 
         widget_title = QLabel(trans._('Dims. Ordering'), self)
 
         self.layout().addWidget(widget_title, 0, 0)
         self.layout().addWidget(widget_tooltip, 0, 1)
         self.layout().addWidget(view, 1, 0)
+
+        # connect axes_list and dims
+        self.axis_list.events.reordered.connect(
+            lambda event: set_dims_order(dims, event.value), 
+            until=self.parent().finished
+        )
+        dims.events.order.connect(
+            lambda event: move_indices(self.axis_list, event.value), 
+            until=self.parent().finished
+        )
