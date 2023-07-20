@@ -93,13 +93,17 @@ def test_empty_vectors_with_property_choices():
     """Test instantiating Vectors layer with empty coordinate-like 2D data."""
     shape = (0, 2, 2)
     data = np.empty(shape)
-    property_choices = {'angle': np.array([0.5], dtype=float)}
-    layer = Vectors(data, property_choices=property_choices)
+    feature_choices = {'angle': np.array([0.5], dtype=float)}
+    layer = Vectors(
+        data, features={'angle': []}, feature_defaults=feature_choices
+    )
     assert np.all(layer.data == data)
     assert layer.data.shape == shape
     assert layer.ndim == shape[2]
     assert layer._view_data.shape[2] == 2
-    np.testing.assert_equal(layer.property_choices, property_choices)
+    np.testing.assert_equal(
+        layer.feature_defaults["angle"], feature_choices["angle"]
+    )
 
 
 def test_empty_layer_with_edge_colormap():
