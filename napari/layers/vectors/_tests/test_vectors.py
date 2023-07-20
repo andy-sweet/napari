@@ -89,7 +89,7 @@ def test_empty_vectors_with_features():
     assert_colors_equal(vectors.edge_color, list('rgb'))
 
 
-def test_empty_vectors_with_property_choices():
+def test_empty_vectors_with_features_defaults():
     """Test instantiating Vectors layer with empty coordinate-like 2D data."""
     shape = (0, 2, 2)
     data = np.empty(shape)
@@ -193,16 +193,16 @@ def test_data_setter():
     np.random.seed(0)
     data = np.random.random(shape)
     data[:, 0, :] = 20 * data[:, 0, :]
-    properties = {
+    features = {
         'prop_0': np.random.random((n_vectors_0,)),
         'prop_1': np.random.random((n_vectors_0,)),
     }
-    layer = Vectors(data, properties=properties)
+    layer = Vectors(data, features=features)
 
     assert len(layer.data) == n_vectors_0
     assert len(layer.edge_color) == n_vectors_0
-    assert len(layer.properties['prop_0']) == n_vectors_0
-    assert len(layer.properties['prop_1']) == n_vectors_0
+    assert len(layer.features['prop_0']) == n_vectors_0
+    assert len(layer.features['prop_1']) == n_vectors_0
 
     # set the data with more vectors
     n_vectors_1 = 20
@@ -212,8 +212,8 @@ def test_data_setter():
 
     assert len(layer.data) == n_vectors_1
     assert len(layer.edge_color) == n_vectors_1
-    assert len(layer.properties['prop_0']) == n_vectors_1
-    assert len(layer.properties['prop_1']) == n_vectors_1
+    assert len(layer.features['prop_0']) == n_vectors_1
+    assert len(layer.features['prop_1']) == n_vectors_1
 
     # set the data with fewer vectors
     n_vectors_2 = 5
@@ -223,8 +223,8 @@ def test_data_setter():
 
     assert len(layer.data) == n_vectors_2
     assert len(layer.edge_color) == n_vectors_2
-    assert len(layer.properties['prop_0']) == n_vectors_2
-    assert len(layer.properties['prop_1']) == n_vectors_2
+    assert len(layer.features['prop_0']) == n_vectors_2
+    assert len(layer.features['prop_1']) == n_vectors_2
 
 
 def test_properties_dataframe():
@@ -237,14 +237,35 @@ def test_properties_dataframe():
     properties = {'vector_type': np.array(['A', 'B'] * int(shape[0] / 2))}
     properties_df = pd.DataFrame(properties)
     properties_df = properties_df.astype(properties['vector_type'].dtype)
-    layer = Vectors(data, properties=properties_df)
-    np.testing.assert_equal(layer.properties, properties)
+    with pytest.warns(DeprecationWarning):
+        layer = Vectors(data, properties=properties_df)
+        np.testing.assert_equal(layer.properties, properties)
 
     # test adding a dataframe via the properties setter
     properties_2 = {'vector_type2': np.array(['A', 'B'] * int(shape[0] / 2))}
     properties_df2 = pd.DataFrame(properties_2)
-    layer.properties = properties_df2
-    np.testing.assert_equal(layer.properties, properties_2)
+    with pytest.warns(DeprecationWarning):
+        layer.properties = properties_df2
+        np.testing.assert_equal(layer.properties, properties_2)
+
+
+def test_features_dataframe():
+    """test if properties can be provided as a DataFrame"""
+    np.random.seed(0)
+    shape = (10, 2, 2)
+    data = np.random.random(shape)
+    data[:, 0, :] = 20 * data[:, 0, :]
+    properties = {'vector_type': np.array(['A', 'B'] * int(shape[0] / 2))}
+    features_df = pd.DataFrame(properties)
+    features_df = features_df.astype(properties['vector_type'].dtype)
+    layer = Vectors(data, features=features_df)
+    pd.testing.assert_frame_equal(layer.features, features_df)
+
+    # test adding a dataframe via the properties setter
+    features_2 = {'vector_type2': np.array(['A', 'B'] * int(shape[0] / 2))}
+    features_df2 = pd.DataFrame(features_2)
+    layer.features = features_df2
+    pd.testing.assert_frame_equal(layer.features, features_df2)
 
 
 def test_adding_properties():
