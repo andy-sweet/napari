@@ -270,7 +270,6 @@ def test_features_dataframe():
 
 def test_adding_properties():
     """test adding properties to a Vectors layer"""
-    shape = (10, 2)
     np.random.seed(0)
     shape = (10, 2, 2)
     data = np.random.random(shape)
@@ -446,33 +445,32 @@ def test_edge_color_cycle():
     shape = (10, 2, 2)
     data = np.random.random(shape)
     data[:, 0, :] = 20 * data[:, 0, :]
-    properties = {'vector_type': np.array(['A', 'B'] * int(shape[0] / 2))}
+    features = {'vector_type': np.array(['A', 'B'] * int(shape[0] / 2))}
     color_cycle = ['red', 'blue']
     layer = Vectors(
         data,
-        properties=properties,
+        features=features,
         edge_color='vector_type',
         edge_color_cycle=color_cycle,
     )
-    np.testing.assert_equal(layer.properties, properties)
+    pd.testing.assert_frame_equal(layer.features, pd.DataFrame(features))
     edge_color_array = transform_color(color_cycle * int(shape[0] / 2))
     assert np.all(layer.edge_color == edge_color_array)
 
 
 def test_edge_color_colormap():
     """Test creating Vectors where edge color is set by a colormap"""
-    shape = (10, 2)
     shape = (10, 2, 2)
     data = np.random.random(shape)
     data[:, 0, :] = 20 * data[:, 0, :]
-    properties = {'angle': np.array([0, 1.5] * int(shape[0] / 2))}
+    features = {'angle': np.array([0, 1.5] * int(shape[0] / 2))}
     layer = Vectors(
         data,
-        properties=properties,
+        features=features,
         edge_color='angle',
         edge_colormap='gray',
     )
-    np.testing.assert_equal(layer.properties, properties)
+    pd.testing.assert_frame_equal(layer.features, pd.DataFrame(features))
     assert layer.edge_color_mode == 'colormap'
     edge_color_array = transform_color(['black', 'white'] * int(shape[0] / 2))
     assert np.all(layer.edge_color == edge_color_array)
@@ -504,12 +502,12 @@ def test_edge_color_map_non_numeric_property():
     shape = (10, 2, 2)
     data = np.random.random(shape)
     data[:, 0, :] = 20 * data[:, 0, :]
-    properties = {'vector_type': np.array(['A', 'B'] * int(shape[0] / 2))}
+    features = {'vector_type': np.array(['A', 'B'] * int(shape[0] / 2))}
     color_cycle = ['red', 'blue']
     initial_color = [0, 1, 0, 1]
     layer = Vectors(
         data,
-        properties=properties,
+        features=features,
         edge_color=initial_color,
         edge_color_cycle=color_cycle,
         edge_colormap='gray',
