@@ -278,23 +278,25 @@ def test_adding_properties():
     layer = Vectors(data)
 
     # properties should start empty
-    assert layer.properties == {}
+    with pytest.warns(DeprecationWarning):
+        assert layer.properties == {}
 
     # add properties
-    layer.properties = properties
-    np.testing.assert_equal(layer.properties, properties)
+    with pytest.warns(DeprecationWarning):
+        layer.properties = properties
+        np.testing.assert_equal(layer.properties, properties)
 
     # removing a property that was the _edge_color_property should give a warning
     layer.edge_color = 'vector_type'
     properties_2 = {
         'not_vector_type': np.array(['A', 'B'] * int(shape[0] / 2))
     }
-    with pytest.warns(RuntimeWarning):
+    with pytest.warns(DeprecationWarning):
         layer.properties = properties_2
 
     # adding properties with the wrong length should raise an exception
     bad_properties = {'vector_type': np.array(['A', 'B'])}
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError), pytest.warns(DeprecationWarning):
         layer.properties = bad_properties
 
 
@@ -716,5 +718,9 @@ def test_out_of_slice_display():
 def test_empty_data_from_tuple():
     """Test that empty data raises an error."""
     layer = Vectors(name="vector", ndim=3)
-    layer2 = Vectors.create(*layer.as_layer_data_tuple())
+    data, attributes, layer_type = layer.as_layer_data_tuple()
+    # properties is deprecated
+    attributes.pop('properties')
+    attributes.pop('property_choices')
+    layer2 = Vectors.create(data, attributes, layer_type)
     assert layer2.data.size == 0
