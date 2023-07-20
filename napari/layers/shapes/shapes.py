@@ -1513,7 +1513,7 @@ class Shapes(Layer):
     def _is_color_mapped(self, color):
         """determines if the new color argument is for directly setting or cycle/colormap"""
         if isinstance(color, str):
-            return color in self.properties
+            return color in self.features
         if isinstance(color, (list, np.ndarray)):
             return False
 

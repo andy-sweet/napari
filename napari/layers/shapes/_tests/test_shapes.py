@@ -19,8 +19,8 @@ from napari.layers.utils.color_encoding import ConstantColorEncoding
 from napari.utils.colormaps.standardize_color import transform_color
 
 
-def _make_cycled_properties(values, length):
-    """Helper function to make property values
+def _make_cycled_features(values, length):
+    """Helper function to make features values
 
     Parameters
     ----------
@@ -34,8 +34,8 @@ def _make_cycled_properties(values, length):
     cycled_properties : np.ndarray
         The property array comprising the cycled values.
     """
-    cycled_properties = np.array(list(islice(cycle(values), 0, length)))
-    return cycled_properties
+    cycled_features = np.array(list(islice(cycle(values), 0, length)))
+    return cycled_features
 
 
 def test_empty_shapes():
@@ -71,8 +71,8 @@ def test_empty_shapes_with_features():
     assert_colors_equal(shapes.face_color, list('rgb'))
 
 
-properties_array = {'shape_type': _make_cycled_properties(['A', 'B'], 10)}
-properties_list = {'shape_type': list(_make_cycled_properties(['A', 'B'], 10))}
+properties_array = {'shape_type': _make_cycled_features(['A', 'B'], 10)}
+properties_list = {'shape_type': list(_make_cycled_features(['A', 'B'], 10))}
 
 
 @pytest.mark.parametrize("properties", [properties_array, properties_list])
@@ -133,37 +133,39 @@ def test_properties(properties):
 
 
 @pytest.mark.parametrize("attribute", ['edge', 'face'])
-def test_adding_properties(attribute):
+def test_adding_features(attribute):
     """Test adding properties to an existing layer"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
     layer = Shapes(data)
 
-    # add properties
-    properties = {'shape_type': _make_cycled_properties(['A', 'B'], shape[0])}
-    layer.properties = properties
-    np.testing.assert_equal(layer.properties, properties)
+    # add features
+    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    layer.features = properties
+    pd.testing.assert_frame_equal(layer.features, pd.DataFrame(properties))
 
     # add properties as a dataframe
     properties_df = pd.DataFrame(properties)
-    layer.properties = properties_df
-    np.testing.assert_equal(layer.properties, properties)
+    layer.features = properties_df
+    pd.testing.assert_frame_equal(layer.features, properties_df)
 
     # add properties as a dictionary with list values
     properties_list = {
-        'shape_type': list(_make_cycled_properties(['A', 'B'], shape[0]))
+        'shape_type': list(_make_cycled_features(['A', 'B'], shape[0]))
     }
-    layer.properties = properties_list
-    assert isinstance(layer.properties['shape_type'], np.ndarray)
+    layer.features = properties_list
+    pd.testing.assert_frame_equal(
+        layer.features, pd.DataFrame(properties_list)
+    )
 
     # removing a property that was the _*_color_property should give a warning
     setattr(layer, f'_{attribute}_color_property', 'shape_type')
     properties_2 = {
-        'not_shape_type': _make_cycled_properties(['A', 'B'], shape[0])
+        'not_shape_type': _make_cycled_features(['A', 'B'], shape[0])
     }
     with pytest.warns(RuntimeWarning):
-        layer.properties = properties_2
+        layer.features = properties_2
 
 
 def test_colormap_scale_change():
@@ -190,7 +192,7 @@ def test_data_setter_with_properties():
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_properties(['A', 'B'], shape[0])}
+    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
     layer = Shapes(data, properties=properties)
 
     # test setting to data with fewer shapes
@@ -216,7 +218,7 @@ def test_properties_dataframe():
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_properties(['A', 'B'], shape[0])}
+    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
     properties_df = pd.DataFrame(properties)
     properties_df = properties_df.astype(properties['shape_type'].dtype)
     layer = Shapes(data, properties=properties_df)
@@ -1413,7 +1415,7 @@ def test_switch_color_mode(attribute):
     continuous_prop[-1] = 1
     properties = {
         'shape_truthiness': continuous_prop,
-        'shape_type': _make_cycled_properties(['A', 'B'], shape[0]),
+        'shape_type': _make_cycled_features(['A', 'B'], shape[0]),
     }
     initial_color = [1, 0, 0, 1]
     color_cycle = ['red', 'blue']
@@ -1551,7 +1553,7 @@ def test_color_cycle(attribute, color_cycle):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_properties(['A', 'B'], shape[0])}
+    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
     shapes_kwargs = {
         'properties': properties,
         f'{attribute}_color': 'shape_type',
@@ -1659,7 +1661,7 @@ def test_adding_value_color_cycle(attribute):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_properties(['A', 'B'], shape[0])}
+    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
     color_cycle = ['red', 'blue']
     shapes_kwargs = {
         'properties': properties,
@@ -1686,7 +1688,7 @@ def test_color_colormap(attribute):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_properties([0, 1.5], shape[0])}
+    properties = {'shape_type': _make_cycled_features([0, 1.5], shape[0])}
     shapes_kwargs = {
         'properties': properties,
         f'{attribute}_color': 'shape_type',
@@ -1764,7 +1766,7 @@ def test_colormap_with_categorical_properties(attribute):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_properties(['A', 'B'], shape[0])}
+    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
     layer = Shapes(data, properties=properties)
 
     with pytest.raises(TypeError), pytest.warns(UserWarning):
@@ -1777,7 +1779,7 @@ def test_add_colormap(attribute):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    annotations = {'shape_type': _make_cycled_properties([0, 1.5], shape[0])}
+    annotations = {'shape_type': _make_cycled_features([0, 1.5], shape[0])}
     color_kwarg = f'{attribute}_color'
     colormap_kwarg = f'{attribute}_colormap'
     args = {color_kwarg: 'shape_type', colormap_kwarg: 'viridis'}
