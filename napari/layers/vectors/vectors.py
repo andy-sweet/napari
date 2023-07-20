@@ -562,13 +562,13 @@ class Vectors(Layer):
                 color_property = ''
             if color_property == '':
                 if self.features.shape[1] > 0:
-                    new_color_property = next(iter(self.features))
+                    color_property = next(iter(self.features))
                     self._edge.color_properties = {
                         'name': color_property,
-                        'values': self.features[new_color_property].to_numpy(),
-                        'current_value': self.feature_defaults[
-                            new_color_property
-                        ][0],
+                        'values': self.features[color_property].to_numpy(),
+                        'current_value': self.feature_defaults[color_property][
+                            0
+                        ],
                     }
                     warnings.warn(
                         trans._(

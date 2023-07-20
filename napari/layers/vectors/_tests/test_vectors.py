@@ -496,7 +496,7 @@ def test_edge_color_colormap():
 
 def test_edge_color_map_non_numeric_property():
     """Test setting edge_color as a color map of a
-    non-numeric property raises an error
+    non-numeric features raises an error
     """
     np.random.seed(0)
     shape = (10, 2, 2)
@@ -530,7 +530,7 @@ def test_switching_edge_color_mode():
     shape = (10, 2, 2)
     data = np.random.random(shape)
     data[:, 0, :] = 20 * data[:, 0, :]
-    properties = {
+    features = {
         'magnitude': np.arange(shape[0]),
         'vector_type': np.array(['A', 'B'] * int(shape[0] / 2)),
     }
@@ -538,7 +538,7 @@ def test_switching_edge_color_mode():
     initial_color = [0, 1, 0, 1]
     layer = Vectors(
         data,
-        properties=properties,
+        features=features,
         edge_color=initial_color,
         edge_color_cycle=color_cycle,
         edge_colormap='gray',
@@ -557,7 +557,7 @@ def test_switching_edge_color_mode():
     # the first property in Vectors.properties is being automatically selected
     with pytest.warns(RuntimeWarning):
         layer.edge_color_mode = 'colormap'
-    assert layer._edge.color_properties.name == next(iter(properties))
+    assert layer._edge.color_properties.name == next(iter(features))
     np.testing.assert_allclose(layer.edge_color[-1], [1, 1, 1, 1])
 
     # switch to color cycle
@@ -572,16 +572,16 @@ def test_switching_edge_color_mode():
     np.testing.assert_allclose(layer.edge_color, edge_colors)
 
 
-def test_properties_color_mode_without_properties():
+def test_properties_color_mode_without_features():
     """Test that switching to a colormode requiring
-    properties without properties defined raises an exceptions
+    features without features defined raises an exceptions
     """
     np.random.seed(0)
     shape = (10, 2, 2)
     data = np.random.random(shape)
     data[:, 0, :] = 20 * data[:, 0, :]
     layer = Vectors(data)
-    assert layer.properties == {}
+    assert layer.features.empty
 
     with pytest.raises(ValueError):
         layer.edge_color_mode = 'colormap'
