@@ -1231,14 +1231,14 @@ class Shapes(Layer):
                     self.current_edge_width = unique_edge_width
 
             unique_properties = {}
-            for k, v in self.properties.items():
+            for k, v in self._feature_table.properties().items():
                 unique_properties[k] = _unique_element(
                     v[selected_data_indices]
                 )
 
             if all(p is not None for p in unique_properties.values()):
                 with self.block_update_properties():
-                    self.current_properties = unique_properties
+                    self._feature_table.set_currents(unique_properties)
 
     def _set_color(self, color, attribute: str):
         """Set the face_color or edge_color property

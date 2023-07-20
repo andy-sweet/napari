@@ -77,25 +77,30 @@ properties_list = {'shape_type': list(_make_cycled_properties(['A', 'B'], 10))}
 
 @pytest.mark.parametrize("properties", [properties_array, properties_list])
 def test_properties(properties):
+    """Ensure that properties is deprecated but still functional."""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    layer = Shapes(data, properties=copy(properties))
-    np.testing.assert_equal(layer.properties, properties)
+    with pytest.warns(DeprecationWarning):
+        layer = Shapes(data, properties=copy(properties))
+        np.testing.assert_equal(layer.properties, properties)
 
     current_prop = {'shape_type': np.array(['B'])}
-    assert layer.current_properties == current_prop
+    with pytest.warns(DeprecationWarning):
+        assert layer.current_properties == current_prop
 
     # test removing shapes
     layer.selected_data = {0, 1}
     layer.remove_selected()
     remove_properties = properties['shape_type'][2::]
-    assert len(layer.properties['shape_type']) == (shape[0] - 2)
-    assert np.all(layer.properties['shape_type'] == remove_properties)
+    with pytest.warns(DeprecationWarning):
+        assert len(layer.properties['shape_type']) == (shape[0] - 2)
+        assert np.all(layer.properties['shape_type'] == remove_properties)
 
     # test selection of properties
     layer.selected_data = {0}
-    selected_annotation = layer.current_properties['shape_type']
+    with pytest.warns(DeprecationWarning):
+        selected_annotation = layer.current_properties['shape_type']
     assert len(selected_annotation) == 1
     assert selected_annotation[0] == 'A'
 
@@ -104,7 +109,8 @@ def test_properties(properties):
     new_shape_type = ['rectangle']
     layer.add(new_data, shape_type=new_shape_type)
     add_properties = np.concatenate((remove_properties, ['A']), axis=0)
-    assert np.all(layer.properties['shape_type'] == add_properties)
+    with pytest.warns(DeprecationWarning):
+        assert np.all(layer.properties['shape_type'] == add_properties)
 
     # test copy/paste
     layer.selected_data = {0, 1}
@@ -113,14 +119,16 @@ def test_properties(properties):
 
     layer._paste_data()
     paste_properties = np.concatenate((add_properties, ['A', 'B']), axis=0)
-    assert np.all(layer.properties['shape_type'] == paste_properties)
+    with pytest.warns(DeprecationWarning):
+        assert np.all(layer.properties['shape_type'] == paste_properties)
 
     # test updating a property
     layer.mode = 'select'
     layer.selected_data = {0}
     new_property = {'shape_type': np.array(['B'])}
-    layer.current_properties = new_property
-    updated_properties = layer.properties
+    with pytest.warns(DeprecationWarning):
+        layer.current_properties = new_property
+        updated_properties = layer.properties
     assert updated_properties['shape_type'][0] == 'B'
 
 
