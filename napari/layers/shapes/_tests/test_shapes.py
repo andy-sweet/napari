@@ -170,8 +170,8 @@ def test_adding_features(attribute):
 
 def test_colormap_scale_change():
     data = 20 * np.random.random((10, 4, 2))
-    properties = {'a': np.linspace(0, 1, 10), 'b': np.linspace(0, 100000, 10)}
-    layer = Shapes(data, properties=properties, edge_color='b')
+    features = {'a': np.linspace(0, 1, 10), 'b': np.linspace(0, 100000, 10)}
+    layer = Shapes(data, features=features, edge_color='b')
 
     assert not np.allclose(
         layer.edge_color[0], layer.edge_color[1], atol=0.001
