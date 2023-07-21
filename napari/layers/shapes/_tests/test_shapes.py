@@ -278,9 +278,10 @@ def test_empty_layer_with_text_property_choices():
 
 def test_empty_layer_with_text_formatted():
     """Test initializing an empty layer with text defined"""
-    default_properties = {'shape_type': np.array([1.5], dtype=float)}
+    feature_defaults = {'shape_type': np.array([1.5], dtype=float)}
     layer = Shapes(
-        property_choices=default_properties,
+        features={"shape_type": np.empty([], dtype=float)},
+        feature_defaults=feature_defaults,
         text='shape_type: {shape_type:.2f}',
     )
     assert layer.text.values.size == 0
@@ -1635,15 +1636,15 @@ def test_add_color_cycle_to_empty_layer(attribute):
     np.random.seed(0)
     new_shape = 20 * np.random.random((1, 4, 2))
     layer.add(new_shape)
-    props = {'shape_type': np.array(['A'])}
+    expected_features = pd.DataFrame({'shape_type': np.array(['A'])})
     expected_color = np.array([[1, 0, 0, 1]])
-    np.testing.assert_equal(layer.properties, props)
+    pd.testing.assert_frame_equal(layer.features, expected_features)
     attribute_color = getattr(layer, f'{attribute}_color')
     np.testing.assert_allclose(attribute_color, expected_color)
 
     # add a shape with a new property
     layer.selected_data = []
-    layer.default_features = {'shape_type': np.array(['B'])}
+    layer.feature_defaults = {'shape_type': np.array(['B'])}
     new_shape_2 = 20 * np.random.random((1, 4, 2))
     layer.add(new_shape_2)
     new_color = np.array([0, 0, 1, 1])
@@ -2166,32 +2167,28 @@ def test_to_labels_3D():
     assert np.all(np.unique(labels) == [0, 1, 2, 3])
 
 
-def test_add_single_shape_consistent_properties():
-    """Test adding a single shape ensures correct number of added properties"""
+def test_add_single_shape_consistent_features():
+    """Test adding a single shape ensures correct number of added features"""
     data = [
         np.array([[100, 200], [200, 300]]),
         np.array([[300, 400], [400, 500]]),
     ]
-    properties = {'index': [1, 2]}
-    layer = Shapes(
-        np.array(data), shape_type='rectangle', properties=properties
-    )
+    features = {'index': [1, 2]}
+    layer = Shapes(np.array(data), shape_type='rectangle', features=features)
 
     layer.add(np.array([[500, 600], [700, 800]]))
-    assert len(layer.properties['index']) == 3
-    assert layer.properties['index'][2] == 2
+    assert len(layer.features['index']) == 3
+    assert layer.features['index'][2] == 2
 
 
-def test_add_shapes_consistent_properties():
-    """Test adding multiple shapes ensures correct number of added properties"""
+def test_add_shapes_consistent_features():
+    """Test adding multiple shapes ensures correct number of added features"""
     data = [
         np.array([[100, 200], [200, 300]]),
         np.array([[300, 400], [400, 500]]),
     ]
-    properties = {'index': [1, 2]}
-    layer = Shapes(
-        np.array(data), shape_type='rectangle', properties=properties
-    )
+    features = {'index': [1, 2]}
+    layer = Shapes(np.array(data), shape_type='rectangle', features=features)
 
     layer.add(
         [
@@ -2199,9 +2196,9 @@ def test_add_shapes_consistent_properties():
             np.array([[700, 800], [800, 900]]),
         ]
     )
-    assert len(layer.properties['index']) == 4
-    assert layer.properties['index'][2] == 2
-    assert layer.properties['index'][3] == 2
+    assert len(layer.features['index']) == 4
+    assert layer.features['index'][2] == 2
+    assert layer.features['index'][3] == 2
 
 
 def test_world_data_extent():
