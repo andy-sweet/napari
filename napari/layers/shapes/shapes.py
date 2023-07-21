@@ -2,7 +2,7 @@ import warnings
 from contextlib import contextmanager
 from copy import copy, deepcopy
 from itertools import cycle
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -563,25 +563,27 @@ class Shapes(Layer):
         )
 
         # set the current_* properties
-        if len(data) > 0:
-            self._current_edge_color = self.edge_color[-1]
-            self._current_face_color = self.face_color[-1]
-        elif len(data) == 0 and not self.features.empty:
-            self._initialize_current_color_for_empty_layer(edge_color, 'edge')
-            self._initialize_current_color_for_empty_layer(face_color, 'face')
-        elif len(data) == 0 and self.features.empty:
-            self._current_edge_color = transform_color_with_defaults(
-                num_entries=1,
-                colors=edge_color,
-                elem_name="edge_color",
-                default="black",
-            )
-            self._current_face_color = transform_color_with_defaults(
-                num_entries=1,
-                colors=face_color,
-                elem_name="face_color",
-                default="black",
-            )
+        # if len(data) > 0:
+        #     self._current_edge_color = self.edge_color[-1]
+        #     self._current_face_color = self.face_color[-1]
+        # elif len(data) == 0 and not self.features.empty:
+        #     self._initialize_current_color_for_empty_layer(edge_color, 'edge')
+        #     self._initialize_current_color_for_empty_layer(face_color, 'face')
+        # elif len(data) == 0 and self.features.empty:
+        #     self._current_edge_color = transform_color_with_defaults(
+        #         num_entries=1,
+        #         colors=edge_color,
+        #         elem_name="edge_color",
+        #         default="black",
+        #     )
+        #     self._current_face_color = transform_color_with_defaults(
+        #         num_entries=1,
+        #         colors=face_color,
+        #         elem_name="face_color",
+        #         default="black",
+        #     )
+        self._initialize_current_color(data, 'edge', edge_color)
+        self._initialize_current_color(data, 'face', face_color)
 
         self._text = TextManager._from_layer(
             text=text,
@@ -590,6 +592,34 @@ class Shapes(Layer):
 
         # Trigger generation of view slice and thumbnail
         self.refresh()
+
+    def _initialize_current_color(
+        self,
+        data,
+        attribute: str,
+        color_value: Union[ColorType, Sequence[ColorType]],
+    ):
+        color_mode = getattr(self, f'_{attribute}_color_mode')
+        if len(data) > 0:
+            colors = getattr(self, f"{attribute}_color")
+            setattr(self, f"_current_{attribute}_color", colors[-1])
+        elif len(data) == 0 and (color_mode is not ColorMode.DIRECT):
+            # empty layer and colormap or color cycle
+            self._initialize_current_color_for_empty_layer(
+                color_value, attribute
+            )
+        else:
+            # empty layer and direct mode
+            setattr(
+                self,
+                f"_current_{attribute}_color",
+                transform_color_with_defaults(
+                    num_entries=1,
+                    colors=color_value,
+                    elem_name=f"{attribute}_color",
+                    default="black",
+                ),
+            )
 
     def _initialize_current_color_for_empty_layer(
         self, color: ColorType, attribute: str
@@ -1407,7 +1437,7 @@ class Shapes(Layer):
                 color_cycle_map = getattr(self, f'{attribute}_color_cycle_map')
                 color_cycle_keys = [*color_cycle_map]
                 props_in_map = np.in1d(color_properties, color_cycle_keys)
-                if not np.all(props_in_map):
+                if not np.all(props_in_map) or (len(color_properties) == 0):
                     props_to_add = np.unique(
                         color_properties[np.logical_not(props_in_map)]
                     )
