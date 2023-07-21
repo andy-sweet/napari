@@ -1412,7 +1412,7 @@ def test_switch_color_mode(attribute):
     # create a continuous property with a known value in the last element
     continuous_prop = np.random.random((shape[0],))
     continuous_prop[-1] = 1
-    properties = {
+    features = {
         'shape_truthiness': continuous_prop,
         'shape_type': _make_cycled_features(['A', 'B'], shape[0]),
     }
@@ -1426,7 +1426,7 @@ def test_switch_color_mode(attribute):
         colormap_kwarg: 'gray',
         color_cycle_kwarg: color_cycle,
     }
-    layer = Shapes(data, properties=properties, **args)
+    layer = Shapes(data, features=features, **args)
 
     layer_color_mode = getattr(layer, f'{attribute}_color_mode')
     layer_color = getattr(layer, f'{attribute}_color')
@@ -1445,7 +1445,7 @@ def test_switch_color_mode(attribute):
     with pytest.warns(UserWarning):
         setattr(layer, f'{attribute}_color_mode', 'colormap')
     color_property = getattr(layer, f'_{attribute}_color_property')
-    assert color_property == next(iter(properties))
+    assert color_property == next(iter(features))
     layer_color = getattr(layer, f'{attribute}_color')
     np.testing.assert_allclose(layer_color[-1], [1, 1, 1, 1])
 
@@ -1524,8 +1524,8 @@ def test_color_direct(attribute: str):
 
 
 @pytest.mark.parametrize("attribute", ['edge', 'face'])
-def test_single_shape_properties(attribute):
-    """Test creating single shape with properties"""
+def test_single_shape(attribute):
+    """Test creating single shape with direct coloring."""
     shape = (4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
@@ -1552,15 +1552,17 @@ def test_color_cycle(attribute, color_cycle):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    features = pd.DataFrame(
+        {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    )
     shapes_kwargs = {
-        'properties': properties,
+        'features': features,
         f'{attribute}_color': 'shape_type',
         f'{attribute}_color_cycle': color_cycle,
     }
     layer = Shapes(data, **shapes_kwargs)
 
-    np.testing.assert_equal(layer.properties, properties)
+    pd.testing.assert_frame_equal(layer.features, features)
     color_array = transform_color(
         list(islice(cycle(color_cycle), 0, shape[0]))
     )
@@ -1595,9 +1597,9 @@ def test_color_cycle(attribute, color_cycle):
 
     # test adding a shape with a new property value
     layer.selected_data = {}
-    current_properties = layer.current_properties
-    current_properties['shape_type'] = np.array(['new'])
-    layer.current_properties = current_properties
+    feature_defaults = layer.feature_defaults
+    feature_defaults['shape_type'] = np.array(['new'])
+    layer.feature_defaults = feature_defaults
     new_shape_2 = np.random.random((1, 4, 2))
     layer.add(new_shape_2)
     color_cycle_map = getattr(layer, f'{attribute}_color_cycle_map')
@@ -1614,10 +1616,11 @@ def test_add_color_cycle_to_empty_layer(attribute):
 
     See: https://github.com/napari/napari/pull/1069
     """
-    default_properties = {'shape_type': np.array(['A'])}
+    default_features = {'shape_type': np.array(['A'])}
     color_cycle = ['red', 'blue']
     shapes_kwargs = {
-        'property_choices': default_properties,
+        'features': {'shape_type': np.empty([], dtype='<U1')},
+        'feature_defaults': default_features,
         f'{attribute}_color': 'shape_type',
         f'{attribute}_color_cycle': color_cycle,
     }
@@ -1640,15 +1643,15 @@ def test_add_color_cycle_to_empty_layer(attribute):
 
     # add a shape with a new property
     layer.selected_data = []
-    layer.current_properties = {'shape_type': np.array(['B'])}
+    layer.default_features = {'shape_type': np.array(['B'])}
     new_shape_2 = 20 * np.random.random((1, 4, 2))
     layer.add(new_shape_2)
     new_color = np.array([0, 0, 1, 1])
     expected_color = np.vstack((expected_color, new_color))
-    new_properties = {'shape_type': np.array(['A', 'B'])}
+    new_features = pd.DataFrame({'shape_type': np.array(['A', 'B'])})
     attribute_color = getattr(layer, f'{attribute}_color')
     np.testing.assert_allclose(attribute_color, expected_color)
-    np.testing.assert_equal(layer.properties, new_properties)
+    pd.testing.assert_frame_equal(layer.features, new_features)
 
 
 @pytest.mark.parametrize("attribute", ['edge', 'face'])
@@ -1660,19 +1663,19 @@ def test_adding_value_color_cycle(attribute):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    features = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
     color_cycle = ['red', 'blue']
     shapes_kwargs = {
-        'properties': properties,
+        'features': features,
         f'{attribute}_color': 'shape_type',
         f'{attribute}_color_cycle': color_cycle,
     }
     layer = Shapes(data, **shapes_kwargs)
 
     # make shape 0 shape_type C
-    shape_types = layer.properties['shape_type']
+    shape_types = layer.features['shape_type']
     shape_types[0] = 'C'
-    layer.properties['shape_type'] = shape_types
+    layer.features['shape_type'] = shape_types
     layer.refresh_colors(update_color_mapping=False)
 
     color_cycle_map = getattr(layer, f'{attribute}_color_cycle_map')
@@ -1687,14 +1690,16 @@ def test_color_colormap(attribute):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_features([0, 1.5], shape[0])}
+    features = pd.DataFrame(
+        {'shape_type': _make_cycled_features([0, 1.5], shape[0])}
+    )
     shapes_kwargs = {
-        'properties': properties,
+        'features': features,
         f'{attribute}_color': 'shape_type',
         f'{attribute}_colormap': 'gray',
     }
     layer = Shapes(data, **shapes_kwargs)
-    np.testing.assert_equal(layer.properties, properties)
+    pd.testing.assert_frame_equal(layer.features, features)
     color_mode = getattr(layer, f'{attribute}_color_mode')
     assert color_mode == 'colormap'
     color_array = transform_color(['black', 'white'] * int(shape[0] / 2))
@@ -1748,7 +1753,7 @@ def test_color_colormap(attribute):
 
 
 @pytest.mark.parametrize("attribute", ['edge', 'face'])
-def test_colormap_without_properties(attribute):
+def test_colormap_without_features(attribute):
     """Setting the colormode to colormap should raise an exception"""
     shape = (10, 4, 2)
     np.random.seed(0)
@@ -1760,13 +1765,13 @@ def test_colormap_without_properties(attribute):
 
 
 @pytest.mark.parametrize("attribute", ['edge', 'face'])
-def test_colormap_with_categorical_properties(attribute):
+def test_colormap_with_categorical_features(attribute):
     """Setting the colormode to colormap should raise an exception"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
-    layer = Shapes(data, properties=properties)
+    features = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    layer = Shapes(data, features=features)
 
     with pytest.raises(TypeError), pytest.warns(UserWarning):
         setattr(layer, f'{attribute}_color_mode', 'colormap')
@@ -1782,7 +1787,7 @@ def test_add_colormap(attribute):
     color_kwarg = f'{attribute}_color'
     colormap_kwarg = f'{attribute}_colormap'
     args = {color_kwarg: 'shape_type', colormap_kwarg: 'viridis'}
-    layer = Shapes(data, properties=annotations, **args)
+    layer = Shapes(data, features=annotations, **args)
 
     setattr(layer, f'{attribute}_colormap', 'gray')
     layer_colormap = getattr(layer, f'{attribute}_colormap')
