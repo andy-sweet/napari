@@ -187,83 +187,84 @@ def test_colormap_scale_change():
     )
 
 
-def test_data_setter_with_properties():
-    """Test layer data on a layer with properties via the data setter"""
+def test_data_setter_with_features():
+    """Test layer data on a layer with features via the data setter"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
-    layer = Shapes(data, properties=properties)
+    features = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    layer = Shapes(data, features=features)
 
     # test setting to data with fewer shapes
     n_new_shapes = 4
     new_data = 20 * np.random.random((n_new_shapes, 4, 2))
     layer.data = new_data
-    assert len(layer.properties['shape_type']) == n_new_shapes
+    assert len(layer.features['shape_type']) == n_new_shapes
 
     # test setting to data with more shapes
     n_new_shapes_2 = 6
     new_data_2 = 20 * np.random.random((n_new_shapes_2, 4, 2))
     layer.data = new_data_2
-    assert len(layer.properties['shape_type']) == n_new_shapes_2
+    assert len(layer.features['shape_type']) == n_new_shapes_2
 
     # test setting to data with same shapes
     new_data_3 = 20 * np.random.random((n_new_shapes_2, 4, 2))
     layer.data = new_data_3
-    assert len(layer.properties['shape_type']) == n_new_shapes_2
+    assert len(layer.features['shape_type']) == n_new_shapes_2
 
 
-def test_properties_dataframe():
-    """Test if properties can be provided as a DataFrame"""
+def test_features_dataframe():
+    """Test if features can be provided as a DataFrame"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
-    properties_df = pd.DataFrame(properties)
-    properties_df = properties_df.astype(properties['shape_type'].dtype)
-    layer = Shapes(data, properties=properties_df)
-    np.testing.assert_equal(layer.properties, properties)
+    features = {'shape_type': _make_cycled_features(['A', 'B'], shape[0])}
+    features_df = pd.DataFrame(features)
+    features_df = features_df.astype(features['shape_type'].dtype)
+    layer = Shapes(data, features=features_df)
+    pd.testing.assert_frame_equal(layer.features, features_df)
 
 
-def test_setting_current_properties():
+def test_setting_feature_defaults():
     shape = (2, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {
+    features = {
         'annotation': ['paw', 'leg'],
         'confidence': [0.5, 0.75],
         'annotator': ['jane', 'ash'],
         'model': ['worst', 'best'],
     }
-    layer = Shapes(data, properties=copy(properties))
-    current_properties = {
+    layer = Shapes(data, features=copy(features))
+    feature_defaults = {
         'annotation': ['leg'],
-        'confidence': 1,
+        'confidence': 1.0,
         'annotator': 'ash',
         'model': np.array(['best']),
     }
-    layer.current_properties = current_properties
+    layer.feature_defaults = feature_defaults
 
-    expected_current_properties = {
-        'annotation': np.array(['leg']),
-        'confidence': np.array([1]),
-        'annotator': np.array(['ash']),
-        'model': np.array(['best']),
-    }
+    expected_feature_defaults = pd.DataFrame(
+        {
+            'annotation': np.array(['leg']),
+            'confidence': np.array([1.0]),
+            'annotator': np.array(['ash']),
+            'model': np.array(['best']),
+        }
+    )
 
-    coerced_current_properties = layer.current_properties
-    for k in coerced_current_properties:
-        value = coerced_current_properties[k]
-        assert isinstance(value, np.ndarray)
-        np.testing.assert_equal(value, expected_current_properties[k])
+    pd.testing.assert_frame_equal(
+        layer.feature_defaults, expected_feature_defaults
+    )
 
 
 def test_empty_layer_with_text_property_choices():
     """Test initializing an empty layer with text defined"""
-    default_properties = {'shape_type': np.array([1.5], dtype=float)}
+    feature_defaults = {'shape_type': np.array([1.5], dtype=float)}
     text_kwargs = {'string': 'shape_type', 'color': 'red'}
     layer = Shapes(
-        property_choices=default_properties,
+        features={"shape_type": np.empty([])},
+        feature_defaults=feature_defaults,
         text=text_kwargs,
     )
     assert layer.text.values.size == 0
@@ -289,33 +290,31 @@ def test_empty_layer_with_text_formatted():
     np.testing.assert_equal(layer.text.values, ['shape_type: 1.50'])
 
 
-@pytest.mark.parametrize("properties", [properties_array, properties_list])
-def test_text_from_property_value(properties):
+@pytest.mark.parametrize("features", [properties_array, properties_list])
+def test_text_from_property_value(features):
     """Test setting text from a property value"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    layer = Shapes(data, properties=copy(properties), text='shape_type')
+    layer = Shapes(data, features=copy(features), text='shape_type')
 
-    np.testing.assert_equal(layer.text.values, properties['shape_type'])
+    np.testing.assert_equal(layer.text.values, features['shape_type'])
 
 
-@pytest.mark.parametrize("properties", [properties_array, properties_list])
-def test_text_from_property_fstring(properties):
+@pytest.mark.parametrize("features", [properties_array, properties_list])
+def test_text_from_property_fstring(features):
     """Test setting text with an f-string from the property value"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    layer = Shapes(
-        data, properties=copy(properties), text='type: {shape_type}'
-    )
+    layer = Shapes(data, features=copy(features), text='type: {shape_type}')
 
-    expected_text = ['type: ' + v for v in properties['shape_type']]
+    expected_text = ['type: ' + v for v in features['shape_type']]
     np.testing.assert_equal(layer.text.values, expected_text)
 
     # test updating the text
     layer.text = 'type-ish: {shape_type}'
-    expected_text_2 = ['type-ish: ' + v for v in properties['shape_type']]
+    expected_text_2 = ['type-ish: ' + v for v in features['shape_type']]
     np.testing.assert_equal(layer.text.values, expected_text_2)
 
     # copy/paste
@@ -333,8 +332,8 @@ def test_text_from_property_fstring(properties):
     np.testing.assert_equal(layer.text.values, expected_text_4)
 
 
-@pytest.mark.parametrize("properties", [properties_array, properties_list])
-def test_set_text_with_kwarg_dict(properties):
+@pytest.mark.parametrize("features", [properties_array, properties_list])
+def test_set_text_with_kwarg_dict(features):
     text_kwargs = {
         'string': 'type: {shape_type}',
         'color': ConstantColorEncoding(constant=[0, 0, 0, 1]),
@@ -347,9 +346,9 @@ def test_set_text_with_kwarg_dict(properties):
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    layer = Shapes(data, properties=copy(properties), text=text_kwargs)
+    layer = Shapes(data, features=copy(features), text=text_kwargs)
 
-    expected_text = ['type: ' + v for v in properties['shape_type']]
+    expected_text = ['type: ' + v for v in features['shape_type']]
     np.testing.assert_equal(layer.text.values, expected_text)
 
     for property_, value in text_kwargs.items():
@@ -359,25 +358,25 @@ def test_set_text_with_kwarg_dict(properties):
         np.testing.assert_equal(layer_value, value)
 
 
-@pytest.mark.parametrize("properties", [properties_array, properties_list])
-def test_text_error(properties):
+@pytest.mark.parametrize("features", [properties_array, properties_list])
+def test_text_error(features):
     """creating a layer with text as the wrong type should raise an error"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
     # try adding text as the wrong type
     with pytest.raises(ValidationError):
-        Shapes(data, properties=copy(properties), text=123)
+        Shapes(data, features=copy(features), text=123)
 
 
 def test_select_properties_object_dtype():
     """selecting points when they have a property of object dtype should not fail"""
     # pandas uses object as dtype for strings by default
-    properties = pd.DataFrame({'color': ['red', 'green']})
-    pl = Shapes(np.ones((2, 2, 2)), properties=properties)
+    features = pd.DataFrame({'color': ['red', 'green']})
+    shapes_layer = Shapes(np.ones((2, 2, 2)), features=features)
     selection = {0, 1}
-    pl.selected_data = selection
-    assert pl.selected_data == selection
+    shapes_layer.selected_data = selection
+    assert shapes_layer.selected_data == selection
 
 
 def test_refresh_text():
@@ -385,12 +384,12 @@ def test_refresh_text():
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    properties = {'shape_type': ['A'] * shape[0]}
-    layer = Shapes(data, properties=copy(properties), text='shape_type')
+    features = {'shape_type': ['A'] * shape[0]}
+    layer = Shapes(data, features=copy(features), text='shape_type')
 
-    new_properties = {'shape_type': ['B'] * shape[0]}
-    layer.properties = new_properties
-    np.testing.assert_equal(layer.text.values, new_properties['shape_type'])
+    features = {'shape_type': ['B'] * shape[0]}
+    layer.features = features
+    np.testing.assert_equal(layer.text.values, features['shape_type'])
 
 
 def test_nd_text():
@@ -399,9 +398,9 @@ def test_nd_text():
         [[0, 10, 10, 10], [0, 10, 20, 20], [0, 10, 10, 20], [0, 10, 20, 10]],
         [[1, 20, 30, 30], [1, 20, 50, 50], [1, 20, 50, 30], [1, 20, 30, 50]],
     ]
-    properties = {'shape_type': ['A', 'B']}
+    features = {'shape_type': ['A', 'B']}
     text_kwargs = {'string': 'shape_type', 'anchor': 'center'}
-    layer = Shapes(shapes_data, properties=properties, text=text_kwargs)
+    layer = Shapes(shapes_data, features=features, text=text_kwargs)
     assert layer.ndim == 4
 
     layer._slice_dims(point=[0, 10, 0, 0], ndisplay=2)
@@ -413,13 +412,13 @@ def test_nd_text():
     np.testing.assert_equal(layer._view_text_coords[0], [[20, 40, 40]])
 
 
-@pytest.mark.parametrize("properties", [properties_array, properties_list])
-def test_data_setter_with_text(properties):
+@pytest.mark.parametrize("features", [properties_array, properties_list])
+def test_data_setter_with_text(features):
     """Test layer data on a layer with text via the data setter"""
     shape = (10, 4, 2)
     np.random.seed(0)
     data = 20 * np.random.random(shape)
-    layer = Shapes(data, properties=copy(properties), text='shape_type')
+    layer = Shapes(data, features=copy(features), text='shape_type')
 
     # test setting to data with fewer shapes
     n_new_shapes = 4
