@@ -75,12 +75,12 @@ class Points(Layer):
         where N is the number of points. properties was deprecated in version 0.5.0
         and will be removed in 0.6. Please use features instead.
     property_choices : dict {str: array (N,)}
-        possible values for each property. properties_choices was deprecated in
+        possibl e values for each property. properties_choices was deprecated in
         version 0.5.0 and will be removed in 0.6. Please use feature_defaults instead.
     text : str, dict
-        Text to be displayed with the points. If text is set to a key in properties,
-        the value of that property will be displayed. Multiple properties can be
-        composed using f-string-like syntax (e.g., '{property_1}, {float_property:.2f}).
+        Text to be displayed with the points. If text is set to a key in features,
+        the value of that feature will be displayed. Multiple features can be
+        composed using f-string-like syntax (e.g., '{feature_1}, {float_feature:.2f}).
         A dictionary can be provided with keyword arguments to set the text values
         and display properties. See TextManager.__init__() for the valid keyword arguments.
         For example usage, see /napari/examples/add_points_with_text.py.
