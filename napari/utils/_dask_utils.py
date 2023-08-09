@@ -4,8 +4,8 @@ import collections.abc
 import contextlib
 from typing import Callable, ContextManager, Optional, Tuple
 
-import dask
 import dask.array as da
+import dask.config
 from dask.cache import Cache
 
 #: dask.cache.Cache, optional : A dask cache for opportunistic caching
