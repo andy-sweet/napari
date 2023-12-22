@@ -112,3 +112,12 @@ def test_delitem_invalidates_cache():
 
     npt.assert_array_equal(chain((1, 1)), (2, 3))
     npt.assert_array_equal(chain.inverse((1, 1)), (1 / 2, 1 / 3))
+
+
+def test_mutate_item_invalidates_cache():
+    chain = TransformChain((Affine(scale=(2, 3)), Affine(scale=(4, 5))))
+
+    chain[0].scale = (1, -1)
+
+    npt.assert_array_equal(chain((1, 1)), (4, -5))
+    npt.assert_array_equal(chain.inverse((1, 1)), (1 / 4, -1 / 5))
