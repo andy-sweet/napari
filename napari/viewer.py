@@ -142,10 +142,10 @@ class Viewer(ViewerModel):
 
     def close(self):
         """Close the viewer window."""
-        # Shutdown the slicer first to avoid processing any more tasks.
-        self._layer_slicer.shutdown()
         # Remove all the layers from the viewer
         self.layers.clear()
+        # Shutdown the slicer after removing layers, so that all tasks have been submitted.
+        self._layer_slicer.shutdown()
         # Close the main window
         self.window.close()
 
@@ -154,7 +154,7 @@ class Viewer(ViewerModel):
     @classmethod
     def close_all(cls) -> int:
         """
-        Class metod, Close all existing viewer instances.
+        Class method, Close all existing viewer instances.
 
         This is mostly exposed to avoid leaking of viewers when running tests.
         As having many non-closed viewer can adversely affect performances.

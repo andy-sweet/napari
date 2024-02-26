@@ -35,6 +35,19 @@ def enable_async(fresh_settings, make_napari_viewer):
 
 
 @pytest.mark.usefixtures('enable_async')
+def test_close_with_async_slice_two_layers_no_errors(make_napari_viewer):
+    """See https://github.com/napari/napari/issues/6685"""
+    viewer = make_napari_viewer()
+    # To reproduce the issue, we need two points layers where the second has
+    # some non-zero coordinates because it will be removed first.
+    viewer.add_points()
+    points = viewer.add_points()
+    points.add([[1, 2]])
+
+    viewer.close()
+
+
+@pytest.mark.usefixtures('enable_async')
 def test_async_slice_image_on_current_step_change(
     make_napari_viewer, qtbot, rng
 ):
