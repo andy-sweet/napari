@@ -7,6 +7,7 @@ import magicgui as mgui
 
 from napari.components.viewer_model import ViewerModel
 from napari.utils import _magicgui
+from napari.utils.events import disconnect_events
 
 if TYPE_CHECKING:
     # helpful for IDE support
@@ -142,10 +143,13 @@ class Viewer(ViewerModel):
 
     def close(self):
         """Close the viewer window."""
+        # Shutdown the slicer first to avoid processing any more tasks.
+        self._layer_slicer.shutdown()
+        # Disconnect changes to dims before removing layers one-by-one
+        # to avoid any unnecessary slicing.
+        disconnect_events(self.dims.events, self)
         # Remove all the layers from the viewer
         self.layers.clear()
-        # Shutdown the slicer after removing layers, so that all tasks have been submitted.
-        self._layer_slicer.shutdown()
         # Close the main window
         self.window.close()
 
