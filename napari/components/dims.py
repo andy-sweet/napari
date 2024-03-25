@@ -6,6 +6,7 @@ from typing import (
     NamedTuple,
     Optional,
     Sequence,
+    Set,
     Tuple,
     Union,
 )
@@ -87,8 +88,9 @@ class Dims(EventedModel):
     displayed_order : tuple of int
         Order of only displayed dimensions. These are calculated from the
         ``displayed`` dimensions.
-    rollable :  tuple of bool
-        Tuple of axis roll state. If True the axis is rollable.
+    _unrollable : set of ints
+        The dimension indices that are not affected by _roll.
+        True if the dimension is rollable, false otherwise.
     """
 
     # fields
@@ -96,7 +98,6 @@ class Dims(EventedModel):
     ndisplay: Literal[2, 3] = 2
     order: Tuple[int, ...] = ()
     axis_labels: Tuple[str, ...] = ()
-    rollable: Tuple[bool, ...] = ()
 
     range: Tuple[RangeTuple, ...] = ()
     margin_left: Tuple[float, ...] = ()
@@ -108,13 +109,13 @@ class Dims(EventedModel):
     # private vars
     _play_ready: bool = True  # False if currently awaiting a draw event
     _scroll_progress: int = 0
+    _unrollable: Set[int] = set()  # noqa
 
     # validators
     # check fields is false to allow private fields to work
     @validator(
         'order',
         'axis_labels',
-        'rollable',
         'point',
         'margin_left',
         'margin_right',
@@ -222,9 +223,6 @@ class Dims(EventedModel):
                 )
         elif labels_ndim > ndim:
             updated['axis_labels'] = axis_labels[-ndim:]
-
-        # Check the rollable axes tuple has same number of elements as ndim
-        updated['rollable'] = ensure_len(values['rollable'], ndim, True)
 
         # If the last used slider is no longer visible, use the first.
         last_used = values['last_used']
@@ -446,6 +444,9 @@ class Dims(EventedModel):
         index = (sliders.index(self.last_used) - 1) % len(sliders)
         self.last_used = sliders[index]
 
+    def _update_unrollable(self):
+        self._unrollable = {i for i in self._unrollable if i < self.ndim}
+
     def _roll(self):
         """Roll order of dimensions for display."""
         order = np.array(self.order)
@@ -454,7 +455,8 @@ class Dims(EventedModel):
         # "nsteps" are static but order is dynamic, meaning "rollable"
         # and "nsteps" encode the axes by position, whereas "order"
         # encodes axis by number
-        valid = np.logical_and(self.rollable, np.array(self.nsteps) > 1)[order]
+        rollable = tuple(i not in self._unrollable for i in range(self.ndim))
+        valid = np.logical_and(rollable, np.array(self.nsteps) > 1)[order]
         order[valid] = np.roll(order[valid], shift=1)
         self.order = order
 

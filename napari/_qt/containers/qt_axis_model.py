@@ -12,7 +12,7 @@ class AxisModel:
     """View of an axis within a dims model.
 
     The model keeps track of axis names and allows read / write
-    access on the corresponding rollable state of a Dims object.
+    access on the corresponding _rollable state of a Dims object.
 
     Parameters
     ----------
@@ -60,13 +60,14 @@ class AxisModel:
         """
         If the axis should be rollable.
         """
-        return self.dims.rollable[self.axis]
+        return self.axis not in self.dims._unrollable
 
     @rollable.setter
     def rollable(self, value: bool) -> None:
-        rollable = list(self.dims.rollable)
-        rollable[self.axis] = value
-        self.dims.rollable = tuple(rollable)
+        if value:
+            self.dims._unrollable.discard(self.axis)
+        else:
+            self.dims._unrollable.add(self.axis)
 
 
 class AxisList(SelectableEventedList[AxisModel]):

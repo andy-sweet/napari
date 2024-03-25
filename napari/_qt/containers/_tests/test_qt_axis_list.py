@@ -28,7 +28,7 @@ def test_axismodel():
 
     axismodel.rollable = False
     assert not axismodel.rollable
-    assert not dims.rollable[0]
+    assert 0 in dims._unrollable
 
 
 def test_AxisList():
@@ -81,7 +81,7 @@ def test_QtAxisListModel_data(qtbot):
             Qt.CheckState.Checked,
             role=Qt.ItemDataRole.CheckStateRole,
         )
-    assert dims.rollable[idx]
+    assert idx not in dims._unrollable
 
     new_name = 'new_name'
     with qtbot.waitSignal(axislistmodel.dataChanged, timeout=100):
@@ -98,15 +98,15 @@ def test_QtAxisListModel_flags(qtbot):
         axislistmodel.flags(axislistmodel.index(idx)) for idx in dims.order
     ]
     ref_flags = [
-        FLAGS_ROLLABLE_True if state else FLAGS_ROLLABLE_False
-        for state in dims.rollable
+        FLAGS_ROLLABLE_False if i in dims._unrollable else FLAGS_ROLLABLE_True
+        for i in range(dims.ndim)
     ]
     assert flags == ref_flags
 
 
 def make_QtAxisListModel(qtbot) -> Tuple[Dims, AxisList, QtAxisListModel]:
     dims = Dims()
-    dims.rollable = [True, False]
+    dims._unrollable = {1}
     axislist = AxisList.from_dims(dims)
     view = QtListView(axislist)
     axislistmodel = view.model()
