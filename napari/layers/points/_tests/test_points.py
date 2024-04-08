@@ -2647,3 +2647,13 @@ def test_events_callback(old_name, new_name, value):
 def test_docstring():
     validate_all_params_in_docstring(Points)
     validate_kwargs_sorted(Points)
+
+
+def test_select_properties_nested_array():
+    features = pd.DataFrame(
+        {'color': [np.array([1, 2, 3, 4]), np.array([1, 2, 3, 4])]}
+    )
+    pl = Points(np.ones((2, 2)), features=features)
+    selection = {1}
+    pl.selected_data = selection
+    assert pl.selected_data == selection

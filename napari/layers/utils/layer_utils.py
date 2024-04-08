@@ -1080,6 +1080,6 @@ def _unique_element(array: Array) -> Optional[Any]:
     if len(array) == 0:
         return None
     el = array[0]
-    if np.any(array[1:] != el):
+    if (len(array) > 1) and np.any(array[1:] != el):
         return None
     return el

@@ -1512,9 +1512,10 @@ class Points(Layer):
 
             unique_properties = {}
             for k, v in self.properties.items():
-                unique_properties[k] = _unique_element(v[index])
+                if (unique_property := _unique_element(v[index])) is not None:
+                    unique_properties[k] = [unique_property]
 
-            if all(p is not None for p in unique_properties.values()):
+            if len(unique_properties) > 0:
                 self.current_properties = unique_properties
 
         self._set_highlight()
