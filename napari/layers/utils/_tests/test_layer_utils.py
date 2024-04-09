@@ -7,6 +7,7 @@ from dask import array as da
 
 from napari.layers.utils.layer_utils import (
     _FeatureTable,
+    _unique_element,
     calc_data_range,
     coerce_current_properties,
     dataframe_to_properties,
@@ -488,3 +489,33 @@ def test_register_label_attr_action(monkeypatch):
     monkeypatch.setattr(time, 'time', lambda: 2)
     handler.release_key('K')
     assert foo.value == 0
+
+
+def test_unique_element_with_array_of_one_array():
+    value = np.array([1, 2, 3, 4])
+    array = pd.Series((value,)).to_numpy()
+
+    element = _unique_element(array)
+
+    assert element is not None
+    np.testing.assert_array_equal(element, value)
+
+
+def test_unique_element_with_array_of_same_arrays():
+    value = np.array([1, 2, 3, 4])
+    array = pd.Series((value, value)).to_numpy()
+
+    element = _unique_element(array)
+
+    assert element is not None
+    np.testing.assert_array_equal(element, value)
+
+
+def test_unique_element_with_array_of_diff_arrays():
+    value = np.array([1, 2, 3, 4])
+    other = np.array([5, 6, 7, 8])
+    array = pd.Series((value, value, other)).to_numpy()
+
+    element = _unique_element(array)
+
+    assert element is None

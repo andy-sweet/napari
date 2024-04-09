@@ -846,8 +846,8 @@ class _FeatureTable:
             If not None, the all features values at the given row indices will be set to
             the corresponding new current/default feature values.
         """
-        currents = coerce_current_properties(currents)
-        self._defaults = _validate_features(currents, num_data=1)
+        # currents = coerce_current_properties(currents)
+        self._defaults = _validate_feature_defaults(currents, self._values)
         if update_indices is not None:
             for k in self._defaults:
                 self._values.loc[update_indices, k] = self._defaults[k][0]
@@ -1080,6 +1080,6 @@ def _unique_element(array: Array) -> Optional[Any]:
     if len(array) == 0:
         return None
     el = array[0]
-    if (len(array) > 1) and np.any(array[1:] != el):
+    if any(not np.array_equal(e, el) for e in array[1:]):
         return None
     return el
