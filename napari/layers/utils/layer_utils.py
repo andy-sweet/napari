@@ -846,6 +846,9 @@ class _FeatureTable:
             If not None, the all features values at the given row indices will be set to
             the corresponding new current/default feature values.
         """
+        # TODO: need to think through if this is appropriate.
+        # coerce_current_properties handles some cases, but these might not
+        # be needed with the logic in _validate_feature_defaults
         # currents = coerce_current_properties(currents)
         self._defaults = _validate_feature_defaults(currents, self._values)
         if update_indices is not None:
