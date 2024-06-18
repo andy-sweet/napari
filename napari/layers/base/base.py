@@ -985,7 +985,7 @@ class Layer(KeymapProvider, MousemapProvider, ABC, metaclass=PostInit):
     def _get_ndim(self) -> int:
         raise NotImplementedError
 
-    def _get_base_state(self) -> dict:
+    def _get_base_state(self) -> dict[str, Any]:
         """Get dictionary of attributes on base layer.
 
         This is useful for serialization and deserialization of the layer.
