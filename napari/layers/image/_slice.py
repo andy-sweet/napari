@@ -223,8 +223,10 @@ class _ImageSliceRequest:
     def _call_multi_scale(self) -> _ImageSliceResponse:
         if self.slice_input.ndisplay == 3:
             level = len(self.data) - 1
+            level = 1
         else:
             level = self.data_level
+            level = 1
 
         # Calculate the tile-to-data transform.
         scale = np.ones(self.slice_input.ndim)
@@ -243,6 +245,10 @@ class _ImageSliceRequest:
                     1,
                 )
             translate = self.corner_pixels[0] * scale
+
+        # This accounts for the offset associated with multi-scale
+        # level as determined by napari.
+        translate += (scale - 1) / 2
 
         # This only needs to be a ScaleTranslate but different types
         # of transforms in a chain don't play nicely together right now.
