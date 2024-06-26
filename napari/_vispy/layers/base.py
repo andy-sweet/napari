@@ -219,8 +219,20 @@ class VispyBaseLayer(ABC, Generic[_L]):
         # draw around, whereas vispy (for 2D) defines a pixel location
         # as the corner to start drawing at.
         offset = np.zeros(ndisplay)
+        child_offset = np.zeros(ndisplay)
         if self._array_like and ndisplay == 2:
             offset[:] = -0.5
+            child_offset[:] = 0.5
+            if self.layer.multiscale:
+                # For performance reasons, when displaying multiscale images,
+                # only the part of the data that is visible on the canvas is
+                # sent as a texture to the GPU. This means that the texture
+                # gets an additional transform, to position the texture
+                # correctly offset from the origin of the full data. However,
+                # child nodes, which include overlays such as bounding boxes,
+                # should *not* receive this offset, so we undo it here:
+                child_offset -= self.layer.corner_pixels[0][dims_displayed]
+
         data2data = np.eye(ndisplay + 1)
         data2data[:-1, -1] = offset
 
@@ -235,32 +247,12 @@ class VispyBaseLayer(ABC, Generic[_L]):
         affine_matrix[:ndisplay, :ndisplay] = matrix[::-1, ::-1].T
         affine_matrix[-1, :ndisplay] = translate[::-1]
 
+        # Set the main transform.
         self._master_transform.matrix = affine_matrix
 
-        # Because of performance reason, for multiscale images
-        # we load only visible part of data to GPU.
-        # To place this part of data correctly we update transform,
-        # but this leads to incorrect placement of child layers.
-        # To fix this we need to update child layers transform.
-        simplified_transform = self.layer._transforms.simplified
-        if simplified_transform is None:
-            raise ValueError(
-                'simplified transform is None'
-            )  # pragma: no cover
-        translate_child = (
-            self.layer.translate[dims_displayed]
-            + self.layer.affine.translate[dims_displayed]
-        )[::-1] - offset[::-1]
-        trans_rotate = simplified_transform.rotate[
-            np.ix_(dims_displayed, dims_displayed)
-        ]
-        trans_scale = simplified_transform.scale[dims_displayed][::-1]
-        new_translate = (
-            trans_rotate @ (translate_child - translate) / trans_scale
-        )
-
+        # Set the child transform.
         child_matrix = np.eye(4)
-        child_matrix[-1, : len(translate)] = new_translate
+        child_matrix[-1, :ndisplay] = child_offset[::-1]
         for child in self.node.children:
             child.transform.matrix = child_matrix
 
