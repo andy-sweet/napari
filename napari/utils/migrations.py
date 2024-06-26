@@ -1,7 +1,7 @@
 import inspect
 import warnings
 from functools import wraps
-from typing import Any, Callable, cast
+from typing import Any, Callable, NamedTuple, cast
 
 from napari.utils.translations import trans
 
@@ -220,6 +220,13 @@ def deprecated_class_name(
     return _OldClass
 
 
+class _DeprecatingDictValue(NamedTuple):
+    getter: Callable[['DeprecatingDict'], Any]
+    setter: Callable[['DeprecatingDict', Any], None]
+    deleter: Callable[['DeprecatingDict'], None]
+    message: str
+
+
 class DeprecatingDict(dict[str, Any]):
     """A dictionary that issues warning messages when deprecated keys are accessed.
 
@@ -227,11 +234,14 @@ class DeprecatingDict(dict[str, Any]):
     appear when iterating over this or its items.
 
     Instead deprecated items can only be accessed using `__getitem__`, `__setitem__`,
-    and `__delitem__`, or using `self.deprecations` directly.
+    and `__delitem__`.
+
+    This can be used to keep deprecated and non-deprecated values consistent, but this
+    is not guaranteed in all cases.
     """
 
-    # Maps from a deprecated key to its value and deprecation message.
-    _deprecations: dict[str, tuple[Any, str]]
+    # Maps from a deprecated key to functions that control access to its value.
+    _deprecations: dict[str, _DeprecatingDictValue]
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -239,47 +249,62 @@ class DeprecatingDict(dict[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         if key in self._deprecations:
-            value, message = self._deprecations[key]
-            warnings.warn(message, FutureWarning)
-            return value
+            deprecation = self._deprecations[key]
+            warnings.warn(deprecation.message, FutureWarning)
+            # TODO: store non-deprecated items separately using composition
+            # and make this a MutableMapping to avoid potential infinite recursion.
+            return deprecation.getter(self)
         return super().__getitem__(key)
 
     def __setitem__(self, key: str, value: Any) -> None:
         if key in self._deprecations:
-            _, message = self._deprecations[key]
-            warnings.warn(message, FutureWarning)
-            self._deprecations[key] = value, message
-            return None
+            deprecation = self._deprecations[key]
+            warnings.warn(deprecation.message, FutureWarning)
+            return deprecation.setter(self, value)
         return super().__setitem__(key, value)
 
     def __delitem__(self, key: str) -> None:
         if key in self._deprecations:
-            _, message = self._deprecations[key]
-            warnings.warn(message, FutureWarning)
+            deprecation = self._deprecations[key]
+            warnings.warn(deprecation.message, FutureWarning)
             del self._deprecations[key]
-            return None
+            return deprecation.deleter(self)
         return super().__delitem__(key)
 
     def __contains__(self, key: object) -> bool:
         if key in self._deprecations:
             key = cast(str, key)
-            _, message = self._deprecations[key]
-            warnings.warn(message, FutureWarning)
+            deprecation = self._deprecations[key]
+            warnings.warn(deprecation.message, FutureWarning)
             return True
         return super().__contains__(key)
 
     @property
     def deprecated_keys(self) -> tuple[str, ...]:
+        """The deprecated keys in this dictionary."""
         return tuple(self._deprecations.keys())
 
-    def set_deprecated(self, key: str, value: Any, *, message: str) -> None:
-        """Sets a deprecated key with a value and warning message."""
-        self._deprecations[key] = value, message
+    def set_deprecated_as_derived(
+        self,
+        key: str,
+        *,
+        getter: Callable[['DeprecatingDict'], Any],
+        setter: Callable[['DeprecatingDict', Any], None],
+        deleter: Callable[['DeprecatingDict'], None],
+        message: str,
+    ) -> None:
+        """Sets a deprecated key where the value is derived from the non-deprecated items."""
+        self._deprecations[key] = _DeprecatingDictValue(
+            getter=getter,
+            setter=setter,
+            deleter=deleter,
+            message=message,
+        )
 
     def set_deprecated_from_rename(
         self, from_name: str, to_name: str, version: str, since_version: str
     ) -> None:
-        """Sets a deprecated key with a value that comes from another key.
+        """Sets a deprecated key with a value that comes directly from another key.
 
         A warning message is automatically generated using the version information.
         """
@@ -291,4 +316,11 @@ class DeprecatingDict(dict[str, Any]):
             version=version,
             to_name=to_name,
         )
-        self._deprecations[from_name] = self[to_name], message
+        self._deprecations[from_name] = _DeprecatingDictValue(
+            getter=lambda x: super(DeprecatingDict, x).__getitem__(to_name),
+            setter=lambda x, y: super(DeprecatingDict, x).__setitem__(
+                to_name, y
+            ),
+            deleter=lambda x: super(DeprecatingDict, x).pop(to_name, None),
+            message=message,
+        )

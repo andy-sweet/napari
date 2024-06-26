@@ -1,3 +1,6 @@
+from typing import Any
+from uuid import uuid4
+
 import pytest
 
 from napari.utils.migrations import (
@@ -86,31 +89,61 @@ def test_deprecated_class_name():
             pass
 
 
-def test_deprecating_dict_get_deprecated_key():
+def deprecating_dict_with_derived() -> tuple[DeprecatingDict, str]:
     d = DeprecatingDict({'a': 1, 'b': 2})
-    message = 'c is deprecated. Use a instead.'
-    d.set_deprecated('c', 1, message=message)
+
+    def getter(x: dict[str, Any]) -> Any:
+        return (x['a'], x['b'])
+
+    def setter(x: dict[str, Any], y: Any) -> None:
+        x['a'] = y[0]
+        x['b'] = y[1]
+
+    def deleter(x: dict[str, Any]) -> None:
+        del x['a']
+        del x['b']
+
+    message = str(uuid4())
+    d.set_deprecated_as_derived(
+        'c',
+        getter=getter,
+        setter=setter,
+        deleter=deleter,
+        message=message,
+    )
+    return d, message
+
+
+def test_deprecating_dict_with_derived_then_in_deprecated_keys():
+    d, _ = deprecating_dict_with_derived()
     assert 'c' in d.deprecated_keys
+
+
+def test_deprecating_dict_with_derived_then_get_deprecated():
+    d, message = deprecating_dict_with_derived()
     with pytest.warns(FutureWarning, match=message):
-        assert d['c'] == 1
+        assert d['c'] == (1, 2)
 
 
-def test_deprecating_dict_set_deprecated_key():
-    d = DeprecatingDict({'a': 1, 'b': 2})
-    message = 'c is deprecated. Use a instead.'
-    d.set_deprecated('c', 1, message=message)
-    assert 'c' in d.deprecated_keys
+def test_deprecating_dict_with_derived_then_set_nondeprecated():
+    d, message = deprecating_dict_with_derived()
+    d['a'] = 3
     with pytest.warns(FutureWarning, match=message):
-        d['c'] = 3
+        assert d['c'] == (3, 2)
+
+
+def test_deprecating_dict_with_derived_then_set_deprecated():
+    d, message = deprecating_dict_with_derived()
     with pytest.warns(FutureWarning, match=message):
-        assert d['c'] == 3
+        d['c'] = (5, 7)
+    with pytest.warns(FutureWarning, match=message):
+        assert d['c'] == (5, 7)
+    assert d['a'] == 5
+    assert d['b'] == 7
 
 
-def test_deprecating_dict_del_deprecated_key():
-    d = DeprecatingDict({'a': 1, 'b': 2})
-    message = 'c is deprecated. Use a instead.'
-    d.set_deprecated('c', 1, message=message)
-    assert 'c' in d.deprecated_keys
+def test_deprecating_dict_with_derived_then_del_deprecated():
+    d, message = deprecating_dict_with_derived()
     with pytest.warns(FutureWarning, match=message):
         assert 'c' in d
     with pytest.warns(FutureWarning, match=message):
@@ -118,11 +151,45 @@ def test_deprecating_dict_del_deprecated_key():
     assert 'c' not in d
 
 
-def test_deprecating_dict_set_deprecated_from_rename():
+def deprecating_dict_with_renamed() -> tuple[DeprecatingDict, str]:
     d = DeprecatingDict({'a': 1, 'b': 2})
     d.set_deprecated_from_rename(
         'c', 'a', version='v2.0', since_version='v1.6'
     )
+    return d, 'is deprecated since'
+
+
+def test_deprecating_dict_with_renamed_then_in_deprecated_keys():
+    d, _ = deprecating_dict_with_renamed()
     assert 'c' in d.deprecated_keys
-    with pytest.warns(FutureWarning, match='is deprecated since'):
+
+
+def test_deprecating_dict_with_renamed_then_get_deprecated():
+    d, message = deprecating_dict_with_renamed()
+    with pytest.warns(FutureWarning, match=message):
         assert d['c'] == 1
+
+
+def test_deprecating_dict_with_renamed_then_set_nondeprecated():
+    d, message = deprecating_dict_with_renamed()
+    d['a'] = 3
+    with pytest.warns(FutureWarning, match=message):
+        assert d['c'] == 3
+
+
+def test_deprecating_dict_with_renamed_then_set_deprecated():
+    d, message = deprecating_dict_with_renamed()
+    with pytest.warns(FutureWarning, match=message):
+        d['c'] = 3
+    with pytest.warns(FutureWarning, match=message):
+        assert d['c'] == 3
+    assert d['a'] == 3
+
+
+def test_deprecating_dict_with_renamed_then_del_deprecated():
+    d, message = deprecating_dict_with_renamed()
+    with pytest.warns(FutureWarning, match=message):
+        assert 'c' in d
+    with pytest.warns(FutureWarning, match=message):
+        del d['c']
+    assert 'c' not in d
