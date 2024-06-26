@@ -180,9 +180,9 @@ def test_transforming_child_node(
 def test_transforming_child_node_pyramid(pyramid_layer):
     layer = VispyImageLayer(pyramid_layer)
     corner_pixels_world = np.array([[0, 0], [20, 20]])
-    # TODO: explain why this is (0, 0) and not (-0.5, -0.5) which
-    # is where I would expect to start drawing.
-    npt.assert_array_almost_equal(layer.node.transform.matrix[-1][:2], (0, -0))
+    npt.assert_array_almost_equal(
+        layer.node.transform.matrix[-1][:2], (-0.5, -0.5)
+    )
     npt.assert_array_almost_equal(
         layer.node.children[0].transform.matrix[-1][:2], (0.5, 0.5)
     )
@@ -302,10 +302,8 @@ def test_multiscale_pixel_offset_2d_lowres():
     top_left = transform.map((0, 0))
     bottom_right = transform.map((3, 3))
 
-    # TODO: explain why this is (0, 0) and not (-0.5, -0.5) which
-    # is where I would expect to start drawing.
-    np.testing.assert_array_equal(top_left[:2], [0, 0])
-    np.testing.assert_array_equal(bottom_right[:2], [6, 6])
+    np.testing.assert_array_equal(top_left[:2], [-0.5, -0.5])
+    np.testing.assert_array_equal(bottom_right[:2], [5.5, 5.5])
 
 
 def test_multiscale_pixel_offset_2d_lowres_zoomed():
@@ -325,8 +323,8 @@ def test_multiscale_pixel_offset_2d_lowres_zoomed():
     top_left = transform.map((0, 0))
     bottom_right = transform.map((1, 1))
 
-    np.testing.assert_array_equal(top_left[:2], [2, 2])
-    np.testing.assert_array_equal(bottom_right[:2], [4, 4])
+    np.testing.assert_array_equal(top_left[:2], [1.5, 1.5])
+    np.testing.assert_array_equal(bottom_right[:2], [3.5, 3.5])
 
 
 def test_multiscale_pixel_offset_3d():

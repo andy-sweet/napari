@@ -203,21 +203,21 @@ class VispyBaseLayer(ABC, Generic[_L]):
         dims_displayed = self.layer._slice_input.displayed
         ndisplay = len(dims_displayed)
 
-        # Separate the tile transform from the layer data transform.
-        tile2data = (
+        # Separate the tile transform from the layer data to world/grid transform.
+        tile_to_data = (
             self.layer._transforms[0].set_slice(dims_displayed).affine_matrix
         )
-        data2grid = (
+        data_to_grid = (
             self.layer._transforms[1:]
             .simplified.set_slice(dims_displayed)
             .affine_matrix
         )
 
-        # Define an extra offset in the layer data space to account
-        # for the difference between how napari and vispy treat pixel
-        # locations. napari defines a pixel location as a center to
-        # draw around, whereas vispy (for 2D) defines a pixel location
-        # as the corner to start drawing at.
+        # Define an extra offset in the tile space to account for the
+        # difference between how napari and vispy treat pixel locations.
+        # napari defines a pixel location as a center to draw around,
+        # whereas vispy (for 2D) defines a pixel location as the corner
+        # where we can start drawing.
         offset = np.zeros(ndisplay)
         child_offset = np.zeros(ndisplay)
         if self._array_like and ndisplay == 2:
@@ -231,13 +231,14 @@ class VispyBaseLayer(ABC, Generic[_L]):
                 # correctly offset from the origin of the full data. However,
                 # child nodes, which include overlays such as bounding boxes,
                 # should *not* receive this offset, so we undo it here:
+                # TODO: should this also take into account the scale of tile2data?
                 child_offset -= self.layer.corner_pixels[0][dims_displayed]
 
-        data2data = np.eye(ndisplay + 1)
-        data2data[:-1, -1] = offset
+        tile_offset = np.eye(ndisplay + 1)
+        tile_offset[:-1, -1] = offset
 
         # Recompose the affine transform chain.
-        tile2grid = data2grid @ data2data @ tile2data
+        tile2grid = data_to_grid @ tile_to_data @ tile_offset
 
         # Put the displayed transform chain into a 3D affine transform
         # matrix, also flipping the dimension ordering for vispy.
