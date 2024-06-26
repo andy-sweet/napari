@@ -223,10 +223,8 @@ class _ImageSliceRequest:
     def _call_multi_scale(self) -> _ImageSliceResponse:
         if self.slice_input.ndisplay == 3:
             level = len(self.data) - 1
-            level = 1
         else:
             level = self.data_level
-            level = 1
 
         # Calculate the tile-to-data transform.
         scale = np.ones(self.slice_input.ndim)

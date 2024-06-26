@@ -199,52 +199,41 @@ class VispyBaseLayer(ABC, Generic[_L]):
                 overlay_visual.close()
 
     def _on_matrix_change(self):
-        tile2data = self.layer._transforms[0].affine_matrix
-        data2grid = self.layer._transforms[1:].simplified.affine_matrix
-        data2data = np.eye(4)
-        if self._array_like:
-            data2data[: self.layer._slice_input.ndisplay, -1] = -0.5
+        # Define shorthand for displayed dimensions.
+        dims_displayed = self.layer._slice_input.displayed
+        ndisplay = len(dims_displayed)
 
-        tile2grid = tile2data @ data2data @ data2grid
+        # Separate the tile transform from the layer data transform.
+        tile2data = (
+            self.layer._transforms[0].set_slice(dims_displayed).affine_matrix
+        )
+        data2grid = (
+            self.layer._transforms[1:]
+            .simplified.set_slice(dims_displayed)
+            .affine_matrix
+        )
 
-        matrix = tile2grid[2::-1, 2::-1].T
-        translate = tile2grid[2::-1, -1]
+        # Define an extra offset in the layer data space to account
+        # for the difference between how napari and vispy treat pixel
+        # locations. napari defines a pixel location as a center to
+        # draw around, whereas vispy (for 2D) defines a pixel location
+        # as the corner to start drawing at.
+        offset = np.zeros(ndisplay)
+        if self._array_like and ndisplay == 2:
+            offset[:] = -0.5
+        data2data = np.eye(ndisplay + 1)
+        data2data[:-1, -1] = offset
 
+        # Recompose the affine transform chain.
+        tile2grid = data2grid @ data2data @ tile2data
+
+        # Put the displayed transform chain into a 3D affine transform
+        # matrix, also flipping the dimension ordering for vispy.
+        matrix = tile2grid[:ndisplay, :ndisplay]
+        translate = tile2grid[:ndisplay, -1]
         affine_matrix = np.eye(4)
-        affine_matrix[: matrix.shape[0], : matrix.shape[1]] = matrix
-        affine_matrix[-1, : len(translate)] = translate
-
-        # # mypy: self.layer._transforms.simplified cannot be None
-        # transform = self.layer._transforms.simplified.set_slice(
-        #     self.layer._slice_input.displayed
-        # )
-        # # convert NumPy axis ordering to VisPy axis ordering
-        # # by reversing the axes order and flipping the linear
-        # # matrix
-        # translate = transform.translate[::-1]
-        # matrix = transform.linear_matrix[::-1, ::-1].T
-
-        # # Embed in the top left corner of a 4x4 affine matrix
-        # affine_matrix = np.eye(4)
-        # affine_matrix[: matrix.shape[0], : matrix.shape[1]] = matrix
-        # affine_matrix[-1, : len(translate)] = translate
-
-        # offset = np.zeros(len(self.layer._slice_input.displayed))
-
-        # if self._array_like and self.layer._slice_input.ndisplay == 2:
-        #     # Perform pixel offset to shift origin from top left corner
-        #     # of pixel to center of pixel.
-        #     # Note this offset is only required for array like data in
-        #     # 2D.
-        #     offset_matrix = self.layer._data_to_world.set_slice(
-        #         self.layer._slice_input.displayed
-        #     ).linear_matrix
-        #     offset = -offset_matrix @ np.ones(offset_matrix.shape[1]) / 2
-        #     # Convert NumPy axis ordering to VisPy axis ordering
-        #     # and embed in full affine matrix
-        #     affine_offset = np.eye(4)
-        #     affine_offset[-1, : len(offset)] = offset[::-1]
-        # affine_matrix = affine_matrix @ affine_offset
+        affine_matrix[:ndisplay, :ndisplay] = matrix[::-1, ::-1].T
+        affine_matrix[-1, :ndisplay] = translate[::-1]
 
         self._master_transform.matrix = affine_matrix
 
@@ -253,28 +242,27 @@ class VispyBaseLayer(ABC, Generic[_L]):
         # To place this part of data correctly we update transform,
         # but this leads to incorrect placement of child layers.
         # To fix this we need to update child layers transform.
-        # dims_displayed = self.layer._slice_input.displayed
-        # simplified_transform = self.layer._transforms.simplified
-        # if simplified_transform is None:
-        #     raise ValueError(
-        #         'simplified transform is None'
-        #     )  # pragma: no cover
-        # translate_child = (
-        #     self.layer.translate[dims_displayed]
-        #     + self.layer.affine.translate[dims_displayed]
-        # )[::-1] - offset[::-1]
-        # trans_rotate = simplified_transform.rotate[
-        #     np.ix_(dims_displayed, dims_displayed)
-        # ]
-        # trans_scale = simplified_transform.scale[dims_displayed][::-1]
-        # new_translate = (
-        #     trans_rotate @ (translate_child - translate) / trans_scale
-        # )
+        simplified_transform = self.layer._transforms.simplified
+        if simplified_transform is None:
+            raise ValueError(
+                'simplified transform is None'
+            )  # pragma: no cover
+        translate_child = (
+            self.layer.translate[dims_displayed]
+            + self.layer.affine.translate[dims_displayed]
+        )[::-1] - offset[::-1]
+        trans_rotate = simplified_transform.rotate[
+            np.ix_(dims_displayed, dims_displayed)
+        ]
+        trans_scale = simplified_transform.scale[dims_displayed][::-1]
+        new_translate = (
+            trans_rotate @ (translate_child - translate) / trans_scale
+        )
 
-        # child_matrix = np.eye(4)
-        # child_matrix[-1, : len(translate)] = new_translate
-        # for child in self.node.children:
-        #     child.transform.matrix = child_matrix
+        child_matrix = np.eye(4)
+        child_matrix[-1, : len(translate)] = new_translate
+        for child in self.node.children:
+            child.transform.matrix = child_matrix
 
     def _on_experimental_clipping_planes_change(self):
         if hasattr(self.node, 'clipping_planes') and hasattr(
